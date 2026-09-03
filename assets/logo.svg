@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="200" viewBox="0 0 640 200" role="img" aria-label="BidOptimizerAgent">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EA580C"/>
+      <stop offset="100%" stop-color="#65A30D"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="200" rx="28" ry="28" fill="url(#bg)"/>
+  <text x="105" y="100" font-size="96" text-anchor="middle" dominant-baseline="central">&#127919;</text>
+  <text x="180" y="92" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="34" font-weight="700" fill="#ffffff">BidOptimizerAgent</text>
+  <text x="182" y="126" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="17" fill="#ffffff" fill-opacity="0.92">Bid Optimizer · Turning bids into wins for the team</text>
+</svg>
