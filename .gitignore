@@ -16,6 +16,12 @@ tmp/
 # 产物接力目录（含可售卖成品，勿公开）
 artifacts/
 
+# 私有文件备份目录
+backup/
+
+# 本地敏感变更记录（不进 git，仿 ExecutiveAssistantAgent 约定）
+CHANGELOG.local.md
+
 # Python 缓存
 __pycache__/
 *.pyc
