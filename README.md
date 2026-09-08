@@ -37,9 +37,9 @@ This agent is personified as **Hopkins** — after Claude C. Hopkins, the pionee
 |---|---|
 | **Hopkins** (this project) | Application conversion optimization — gig/job screening, proposals & résumés, funnel, pricing tests |
 | Kit (ExecutiveAssistantAgent) | Executive assistant to the GM — general affairs across the whole team |
-| Justin (LegalCounselAgent) | Legal counsel — contracts & payments for the whole team |
+| Justin (LegalAgent) | Legal counsel — contracts & payments for the whole team |
 
-Hopkins serves the **work-intake squad** (one of the team's five squads), working the upstream of the funnel while Justin guards the downstream (contract & payment security).
+Hopkins serves the **work-intake squad** (a single-member direct report to the owner), working the upstream of the funnel while Justin guards the downstream (contract & payment security).
 
 ---
 
