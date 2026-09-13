@@ -9,12 +9,18 @@
   字节    jobs.bytedance.com/api/v1/search/job/posts          免登录 JSON API（POST）
   MiniMax vrfi1sk8a0.jobs.feishu.cn/api/v1/search/job/posts   飞书招聘（同字节款接口），
           需先 GET 门户 index 页拿会话 cookie 再 POST（裸 POST 会被 WAF 拦 405）
+  智谱    zhipu-ai.jobs.feishu.cn/api/v1/search/job/posts      飞书招聘同款（2026-09-13
+          打通：官方页 joinus 只嵌表单链接、门户域名直访可用，同 MiniMax 流程）
   Kimi    app.mokahr.com(Moka ATS) ——同 DeepSeek 款：portal 页握手（careers.kimi.com
           跳转链接带 sourceToken，实时提取防过期）+ jobs/v2 接口，AES-128-CBC 解密
   DeepSeek app.mokahr.com(Moka ATS) 首页握手 + jobs/v2 接口   返回 AES-128-CBC 加密，
           key=响应里 necromancer 字段，iv=页面 init-data 的 aesIv，用 openssl CLI 解密
-  智谱    zhipuai.cn → zhipu-ai.jobs.feishu.cn  纯 SPA 壳、API 未打通（暂人工浏览，同阿里）
+  智谱    zhipuai.cn → zhipu-ai.jobs.feishu.cn  官方页只嵌飞书表单，门户域名直访同 MiniMax
+          款接口已打通（2026-09-13 起入管道）；阿里仍人工浏览
   电鸭    eleduck.com/feed/latest.xml RSS                      免登录
+  CKHR公众号 搜狗微信文章搜索（type=2）直连 curl              标题+摘要级，
+          2026-09-13 打通；简报单列全量段不过滤（营销式长标题按大厂口径
+          打分会埋掉中词技术岗）；群消息仍走 inbox.md 人工粘贴通道
 
 fit_score 预打分口径（0-100，粗筛用，权重待 T9 用真实转化数据校准）：
   标题命中强关键词 +45（封顶）、命中中关键词 +15（封顶）
@@ -270,40 +276,41 @@ def fetch_kimi():
 # ---------------------------------------------------------------- MiniMax（飞书招聘门户）
 
 MM_PORTAL = "https://vrfi1sk8a0.jobs.feishu.cn"
+ZP_PORTAL = "https://zhipu-ai.jobs.feishu.cn"
 
 
-def fetch_minimax():
-    """MiniMax 社招（minimax.cn/careers → 飞书招聘）。
-    接口同字节款 search/job/posts，但裸 POST 被 WAF 拦 405——须先 GET 门户 index
-    拿会话 cookie，再带 Origin/Referer POST（2026-09-13 实测）。"""
+def fetch_feishu_portal(portal, company, keywords=("", "Agent", "LLM", "大模型", "产品", "工程")):
+    """飞书招聘门户通用通道（字节同款 search/job/posts 接口）。
+    裸 POST 会被 WAF 拦 405——须先 GET 门户 index 拿会话 cookie，
+    再带 Origin/Referer POST（2026-09-13 实测，MiniMax/智谱通用）。"""
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor())
-    opener.open(urllib.request.Request(f"{MM_PORTAL}/index/",
+    opener.open(urllib.request.Request(f"{portal}/index/",
                                        headers={"User-Agent": UA, "Accept": "*/*"}), timeout=20).read()
     polite()
     jobs = []
-    for kw in ("", "Agent", "LLM", "大模型", "产品", "工程"):
+    for kw in keywords:
         body = json.dumps({"keyword": kw, "limit": 20, "offset": 0,
                            "job_category_id_list": [], "tag_id_list": [], "location_code_list": [],
                            "subject_id_list": [], "recruitment_id_list": [],
                            "portal_type": 2, "job_function_id_list": []}).encode()
         req = urllib.request.Request(
-            f"{MM_PORTAL}/api/v1/search/job/posts", data=body,
+            f"{portal}/api/v1/search/job/posts", data=body,
             headers={"User-Agent": UA, "Content-Type": "application/json", "Accept": "*/*",
-                     "Referer": f"{MM_PORTAL}/index/", "Origin": MM_PORTAL})
+                     "Referer": f"{portal}/index/", "Origin": portal})
         data = json.loads(opener.open(req, timeout=20).read().decode())
         for p in (data.get("data") or {}).get("job_post_list") or []:
             cat = (p.get("job_category") or {}).get("name", "") if isinstance(p.get("job_category"), dict) else ""
-            if cat and not any(c in cat for c in ("技术", "产品", "研发", "算法", "工程")):
+            if cat and not any(c in cat for c in ("技术", "产品", "研发", "算法", "工程", "互联网", "电子", "网游")):
                 continue
             cities = "、".join(normalize_city(c.get("name", "")) for c in (p.get("city_list") or []))
             jobs.append({
-                "company": "MiniMax",
+                "company": company,
                 "title": p.get("title", ""),
                 "city": cities,
                 "dept": "",
                 "category": cat,
                 "jd": (p.get("description") or "") + "\n" + (p.get("requirement") or ""),
-                "url": f"{MM_PORTAL}/index/position/{p.get('id')}/detail",
+                "url": f"{portal}/index/position/{p.get('id')}/detail",
                 "updated": str(p.get("publish_time") or ""),
                 "kw": kw,
             })
@@ -314,6 +321,20 @@ def fetch_minimax():
             seen.add(j["url"])
             out.append(j)
     return out
+
+
+def fetch_minimax():
+    """MiniMax 社招（minimax.cn/careers → 飞书招聘）。"""
+    return fetch_feishu_portal(MM_PORTAL, "MiniMax")
+
+
+def fetch_zhipu():
+    """智谱社招（zhipuai.cn/zh/joinus → 飞书招聘门户，官方页只嵌表单、
+    门户域名 zhipu-ai.jobs.feishu.cn 直访可用，2026-09-13 实测打通）。
+    空关键词默认页以北京岗为主，须补「深圳/广州」城市关键词才能拉到
+    广深岗（实测深圳约 20+ 条，智谱是七家中唯一有深圳岗的 AI 公司）。"""
+    return fetch_feishu_portal(ZP_PORTAL, "智谱",
+                               keywords=("", "Agent", "LLM", "大模型", "产品", "工程", "深圳", "广州"))
 
 
 # ---------------------------------------------------------------- CKHR 群等无 API 渠道（收件箱）
@@ -354,6 +375,64 @@ def fetch_inbox():
     if jobs:  # 处理完归档，避免下轮重复
         archive = BRIEF_DIR / f"inbox-archive-{datetime.now().strftime('%Y%m%d-%H%M')}.md"
         INBOX_FILE.rename(archive)
+    return jobs
+
+
+# ---------------------------------------------------------------- CKHR 公众号（搜狗微信搜索）
+
+SOGOU_CKHR = "https://weixin.sogou.com/weixin?type=2&query=%E9%BE%99%E9%BE%99CKHR"
+
+
+def jina_read(url, timeout=45, retries=2):
+    """Jina Reader 代理读页（免登录渲染，绕部分反爬）；偶发限流/抖动，失败重试，仍败返回空串。"""
+    for i in range(retries):
+        try:
+            req = urllib.request.Request(f"https://r.jina.ai/{url}",
+                                         headers={"User-Agent": UA})
+            return urllib.request.urlopen(req, timeout=timeout).read().decode("utf-8", "ignore")
+        except Exception:
+            if i < retries - 1:
+                time.sleep(3)
+    return ""
+
+
+def fetch_ckhr():
+    """CKHR 公众号「澳洲龙龙CKHR」岗位帖监控（2026-09-13 打通，标题+摘要级）。
+    链路：搜狗微信文章搜索（号名独特，单查询即可召回）直接 curl（实测比 Jina
+    中转更稳，Jina 免费档偶发 403）；解析 h3 标题 + txt-info 摘要 +
+    timeConvert 时间戳。只做列表级：搜狗跳转链接被验证码拦（实测）、微信文章
+    页无公开 API，正文与投递（公众号私信关键词）均人工；搜狗收录有天级延迟
+    ——CKHR 本是二手聚合渠道，预期内；跳转链接时效短（数小时），选单以
+    标题+日期为准，要投的岗在公众号内搜标题。摘要含「私信关键词」线索，
+    连同标题填 jd 参与打分。"""
+    raw = http_get(SOGOU_CKHR, timeout=25).decode(errors="replace")
+    if not raw or "antispider" in raw or "请输入验证码" in raw:
+        return []
+    jobs = []
+    for block in re.split(r"(?=<h3>)", raw):
+        m = re.search(r'<h3>\s*<a[^>]*href="(/link\?url=[^"]+)"[^>]*>(.*?)</a>', block, re.S)
+        if not m:
+            continue
+        url = "https://weixin.sogou.com" + html_lib.unescape(m.group(1))
+        title = html_lib.unescape(re.sub(r"<[^>]+>", "", m.group(2))).strip()
+        sm = re.search(r'<p class="txt-info"[^>]*>(.*?)</p>', block, re.S)
+        summary = html_lib.unescape(re.sub(r"<[^>]+>", "", sm.group(1))).strip() if sm else ""
+        tm = re.search(r"timeConvert\('(\d{10})'\)", block)
+        date = datetime.fromtimestamp(int(tm.group(1))).strftime("%Y-%m-%d") if tm else ""
+        if not any(k in title for k in ("岗位", "招聘", "热招", "扩招", "招募", "兼职")):
+            continue  # 滤掉喜报 / 团队管理文，只要岗位帖
+        text = title + " " + summary
+        if any(k in text for k in ("远程", "居家", "在家")):
+            city = "远程"
+        else:
+            city = "远程（CKHR）"  # 该号主打远程，未标城市者按远程口径预筛，终审人工校
+            for c in ("广州", "深圳", "北京", "杭州", "上海", "南京", "成都", "武汉"):
+                if c in text:
+                    city = c
+                    break
+        jobs.append({"company": "CKHR公众号", "title": title, "city": city, "dept": "",
+                     "category": "", "jd": f"{title}\n{summary}", "url": url,
+                     "updated": date, "kw": "搜狗微信"})
     return jobs
 
 
@@ -422,8 +501,8 @@ def main():
 
     for name, fn in [("腾讯", fetch_tencent), ("字节", fetch_bytedance),
                      ("DeepSeek", fetch_deepseek), ("Kimi", fetch_kimi),
-                     ("MiniMax", fetch_minimax), ("电鸭", fetch_eleduck),
-                     ("CKHR群", fetch_inbox)]:
+                     ("MiniMax", fetch_minimax), ("智谱", fetch_zhipu), ("电鸭", fetch_eleduck),
+                     ("CKHR群", fetch_inbox), ("CKHR公众号", fetch_ckhr)]:
         try:
             channels[name] = fn()
             print(f"[ok] {name}: {len(channels[name])} 条", file=sys.stderr)
@@ -434,7 +513,7 @@ def main():
 
     seen = load_seen()
     now = datetime.now()
-    scored, location_blocked, duck = [], [], []
+    scored, location_blocked, duck, ckehr = [], [], [], []
     for name, jobs in channels.items():
         for j in jobs:
             key = j["url"] if name == "电鸭" else f'{j["company"]}|{j["title"]}'
@@ -443,6 +522,9 @@ def main():
             if name == "电鸭":
                 duck.append(j)  # 电鸭单列（远程零活，与坐班漏斗分开归线）
                 continue
+            if name == "CKHR公众号":
+                ckehr.append(j)  # CKHR 单列全量展示：标题营销式长标题、JD 在登录墙内，
+                continue        # 按大厂口径打分会把中词技术岗埋掉，终审由人看标题
             if not city_ok(j["city"]):
                 location_blocked.append(j)
                 continue
@@ -489,11 +571,18 @@ def main():
     ]
     lines += [f'| {"🆕" if j["new"] else ""} | {j["title"]} | [帖]({j["url"]}) |'
               for j in duck_kw] or ["（无相关帖）"]
+    lines += [
+        "", f"## CKHR 公众号近帖（{len(ckehr)} 条，补充线索源全量不过滤）", "",
+        "> 搜狗收录有天级延迟；链接时效短，要投的岗在公众号内搜标题；投递方式在公众号私信关键词。",
+        "", "| 🆕 | 日期 | 标题 | 链接 |", "|---|---|---|---|",
+    ]
+    lines += [f'| {"🆕" if j["new"] else ""} | {j["updated"] or "-"} | {j["title"]} | [帖]({j["url"]}) |'
+              for j in ckehr] or ["（无岗位帖）"]
 
     out = BRIEF_DIR / f"brief-{now.strftime('%Y%m%d-%H%M')}.md"
     out.write_text("\n".join(lines) + "\n")
     print(out)
-    print(f"推荐 {len(top)} / 次级 {len(rest)} / 位置关外 {len(location_blocked)} / 电鸭 {len(duck)}")
+    print(f"推荐 {len(top)} / 次级 {len(rest)} / 位置关外 {len(location_blocked)} / 电鸭 {len(duck)} / CKHR公众号 {len(ckehr)}")
 
 
 if __name__ == "__main__":

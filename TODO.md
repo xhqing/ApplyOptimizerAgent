@@ -28,8 +28,8 @@
   **要做什么**：按「新建 Agent 项目脚手架与开源约定」完整立项——`gh repo create xhqing/LegalAgent --public` + 双语 README（含 logo 与三徽章 + Visitors）+ `CLAUDE.md`（角色：纯法务——合同起草审查、收款结构设计、尽调、证据链、纠纷应对、合规备忘；直属用户、跨组服务全部小组）+ 根目录 `AGENTS.md` 软链 + LICENSE + VERSION + CHANGELOG；建仓后各处链接自然生效，无需回改。
 
 - [ ] **T11** 大厂官方招聘平台注册建档 + 并入岗位巡查节奏（记录：2026-09-08；2026-09-13 13:10 更新：清单由四家扩为七家，巡查管道同步扩容）
-  **背景**：用户 2026-09-08 拍板新增 DeepSeek（talent.deepseek.com）、字节（jobs.bytedance.com）、腾讯（careers.tencent.com）、阿里（talent.alibaba.com）四家官方社招平台为第四渠道（求职侧官网直投）；2026-09-13 再扩三家 AI 大模型公司——月之暗面（careers.kimi.com/social，跳 Moka ATS）、MiniMax（minimax.cn/careers → 飞书招聘）、智谱（zhipuai.cn/zh/joinus → 飞书招聘，有深圳岗）。巡查管道同日扩至七通道（腾讯/字节/DeepSeek/Kimi/MiniMax/电鸭/CKHR群）：Kimi 走 Moka ATS 与 DeepSeek 同款解密通道（portal 链接 sourceToken 实时提取）、MiniMax 走飞书招聘（需先拿门户会话 cookie）；阿里接口 403、智谱纯 SPA 未打通，两家暂人工浏览。
-  **要做什么**：① 七家官网注册 + 在线简历建档（复用 backup/feishu 三份简历 PDF；DeepSeek、月之暗面走 Moka 页面，MiniMax、智谱走飞书招聘门户）；② 巡查节奏已自动化——跑 `python3 scripts/job_brief.py` 并入每日两次刷新（早 9:30 + 晚 21–22 点），产出 `docs/briefs/` 简报，阿里、智谱暂人工浏览；③ 首条投递按 SOP 记台账（source 记 `官网直投-公司名`）。投递纪律：每次 1–3 个高度匹配岗（官网投递留痕，字节面试官可查历史），fit_score 不达标不硬投。
+  **背景**：用户 2026-09-08 拍板新增 DeepSeek（talent.deepseek.com）、字节（jobs.bytedance.com）、腾讯（careers.tencent.com）、阿里（talent.alibaba.com）四家官方社招平台为第四渠道（求职侧官网直投）；2026-09-13 再扩三家 AI 大模型公司——月之暗面（careers.kimi.com/social，跳 Moka ATS）、MiniMax（minimax.cn/careers → 飞书招聘）、智谱（zhipuai.cn/zh/joinus → 飞书招聘，有深圳岗）。巡查管道同日扩容，2026-09-13 晚些时候智谱通道实测打通（门户域名直访 + 飞书同款接口，详见 CHANGELOG）：现八通道自动拉取（腾讯/字节/DeepSeek/Kimi/MiniMax/智谱/电鸭/CKHR群），仅阿里一家人工浏览（接口 403 token 防护）。
+  **要做什么**：① 七家官网注册 + 在线简历建档（复用 backup/feishu 三份简历 PDF；DeepSeek、月之暗面走 Moka 页面，MiniMax、智谱走飞书招聘门户）；② 巡查节奏已自动化——跑 `python3 scripts/job_brief.py` 并入每日两次刷新（早 9:30 + 晚 21–22 点），产出 `docs/briefs/` 简报（八通道：智谱 2026-09-13 已入管道），阿里暂人工浏览；③ 首条投递按 SOP 记台账（source 记 `官网直投-公司名`）。投递纪律：每次 1–3 个高度匹配岗（官网投递留痕，字节面试官可查历史），fit_score 不达标不硬投。（记录时间同步：2026-09-13 13:55）
 
 - [ ] **T13** Upwork 升格可靠渠道后的建档预置（记录：2026-09-13 13:10）
   **背景**：用户 2026-09-13 将 Upwork 列入可靠投递平台（原「备选·预置待命」定位作废，渠道决策见 `docs/channel-strategy.md`）——但 2026-09-05 定下的预置清单（注册 + 英文 profile + 作品集链接）从未实际执行，升格后建档成为正式待办。
