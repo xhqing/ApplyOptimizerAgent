@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 """每日岗位简报管道（Hopkins · ApplyOptimizerAgent）
 
-四通道抓取 → 关键词/位置硬筛 → fit_score 预打分 → 产出 docs/briefs/ 简报。
+多通道抓取 → 关键词/位置硬筛 → fit_score 预打分 → 产出 docs/briefs/ 简报。
 预筛分只是机器预判（口径见下），是否投递由人终审，选中后按 bidding-record-sop 记台账。
 
-通道与接口（2026-09-08 实测验证）：
+通道与接口（2026-09-08 实测验证；2026-09-13 扩通道）：
   腾讯    careers.tencent.com/tencentcareer/api/post/Query   免登录 JSON API
   字节    jobs.bytedance.com/api/v1/search/job/posts          免登录 JSON API（POST）
+  MiniMax vrfi1sk8a0.jobs.feishu.cn/api/v1/search/job/posts   飞书招聘（同字节款接口），
+          需先 GET 门户 index 页拿会话 cookie 再 POST（裸 POST 会被 WAF 拦 405）
+  Kimi    app.mokahr.com(Moka ATS) ——同 DeepSeek 款：portal 页握手（careers.kimi.com
+          跳转链接带 sourceToken，实时提取防过期）+ jobs/v2 接口，AES-128-CBC 解密
   DeepSeek app.mokahr.com(Moka ATS) 首页握手 + jobs/v2 接口   返回 AES-128-CBC 加密，
           key=响应里 necromancer 字段，iv=页面 init-data 的 aesIv，用 openssl CLI 解密
+  智谱    zhipuai.cn → zhipu-ai.jobs.feishu.cn  纯 SPA 壳、API 未打通（暂人工浏览，同阿里）
   电鸭    eleduck.com/feed/latest.xml RSS                      免登录
 
 fit_score 预打分口径（0-100，粗筛用，权重待 T9 用真实转化数据校准）：
@@ -37,6 +42,7 @@ from pathlib import Path
 PROJECT = Path(__file__).resolve().parent.parent
 BRIEF_DIR = PROJECT / "docs" / "briefs"
 SEEN_FILE = BRIEF_DIR / "seen.json"
+INBOX_FILE = BRIEF_DIR / "inbox.md"  # CKHR 群等无 API 渠道的人工粘贴入口（fetch_inbox 消费）
 
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36")
@@ -46,6 +52,25 @@ STRONG_KW = ["agent", "llm", "大模型", "aigc", "智能体", "ai 应用", "ai�
 MID_KW = ["算法", "后端", "服务端", "数据", "平台", "基础设施", "产品经理", "python", "java", "go"]
 
 CITY_GATE = ["广州", "深圳", "远程"]  # 坐班岗位置关；电鸭天然全远程
+
+# Moka ATS 的城市字段返回区名（海淀区/南山区…），映射到城市名才能过位置关（深圳南山岗不能漏）
+DISTRICT_CITY = {
+    "海淀": "北京", "朝阳": "北京", "西城": "北京", "东城": "北京", "通州": "北京",
+    "南山": "深圳", "福田": "深圳", "宝安": "深圳", "龙岗": "深圳", "龙华": "深圳", "罗湖": "深圳",
+    "黄浦": "上海", "徐汇": "上海", "浦东": "上海", "闵行": "上海", "杨浦": "上海", "静安": "上海",
+    "余杭": "杭州", "西湖": "杭州", "滨江": "杭州", "萧山": "杭州", "拱墅": "杭州",
+    "天河": "广州", "番禺": "广州", "海珠": "广州", "黄埔": "广州", "白云": "广州", "越秀": "广州",
+}
+
+
+def normalize_city(name):
+    for d, c in DISTRICT_CITY.items():
+        if d in (name or ""):
+            return c
+    for c in ("北京", "上海", "深圳", "广州", "杭州", "成都", "南京", "武汉", "西安", "新加坡", "旧金山"):
+        if c in (name or ""):
+            return c
+    return name or ""
 
 
 def http_get(url, headers=None, timeout=20):
@@ -159,18 +184,16 @@ def fetch_bytedance():
     return out
 
 
-# ---------------------------------------------------------------- DeepSeek（Moka ATS）
+# ---------------------------------------------------------------- DeepSeek / Kimi（Moka ATS 通用通道）
 
 DS_PORTAL = "https://app.mokahr.com/social-recruitment/high-flyer/140576"
-DS_API = "https://app.mokahr.com/api/outer/ats-apply/website/jobs/v2"
+MOKA_API = "https://app.mokahr.com/api/outer/ats-apply/website/jobs/v2"
 
 
-def fetch_deepseek():
-    import urllib.parse
-    class Jar(urllib.request.HTTPRedirectHandler):
-        pass
+def _fetch_moka(company, org_id, site_id, portal_url, kws):
+    """Moka ATS 通用通道：portal 页握手拿 aesIv + SSR 岗位，jobs/v2 关键词扩查（AES 解密）。"""
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor())
-    raw = opener.open(urllib.request.Request(DS_PORTAL, headers={"User-Agent": UA}), timeout=20).read().decode()
+    raw = opener.open(urllib.request.Request(portal_url, headers={"User-Agent": UA}), timeout=20).read().decode()
     m = re.search(r'<input id="init-data" type="hidden" value="(.*?)"/?>', raw, re.S)
     if not m:
         raise RuntimeError("init-data 未找到（Moka 页面结构可能变化）")
@@ -185,15 +208,15 @@ def fetch_deepseek():
             return
         seen_ids.add(p.get("id"))
         locs = p.get("locations") or []
-        city = "、".join(sorted({l.get("cityName") or (l.get("address") or "")[:8] for l in locs}))
+        city = "、".join(sorted({normalize_city(l.get("cityName") or l.get("address") or "")[:10] for l in locs}))
         jobs.append({
-            "company": "DeepSeek",
+            "company": company,
             "title": p.get("title", ""),
             "city": city,
             "dept": (p.get("zhineng") or {}).get("name", "") if isinstance(p.get("zhineng"), dict) else "",
             "category": "",
             "jd": p.get("jobDescription") or "",
-            "url": DS_PORTAL,
+            "url": portal_url,
             "updated": p.get("updatedAt", ""),
             "kw": "",
         })
@@ -201,17 +224,17 @@ def fetch_deepseek():
     for p in init.get("jobs") or []:  # SSR 首页内嵌的岗位（API 分页有上限，先收下）
         add_row(p)
 
-    # API 忽略翻页参数（实测 pageNo 无效），改按关键词扩查扩大覆盖（实测并集约 31/37）
-    for kw in ("", "算法", "开发", "数据", "工程", "产品", "研究"):
-        body = json.dumps({"orgId": "high-flyer", "siteId": 140576, "pageNo": 1,
+    # API 忽略翻页参数（实测 pageNo 无效），改按关键词扩查扩大覆盖（DeepSeek 实测并集约 31/37）
+    for kw in kws:
+        body = json.dumps({"orgId": org_id, "siteId": site_id, "pageNo": 1,
                            "pageSize": 30, "keyword": kw, "type": "social", "orderBy": 0}).encode()
         req = urllib.request.Request(
-            DS_API, data=body,
+            MOKA_API, data=body,
             headers={"User-Agent": UA, "Content-Type": "application/json",
-                     "Referer": DS_PORTAL, "Origin": "https://app.mokahr.com"})
+                     "Referer": portal_url, "Origin": "https://app.mokahr.com"})
         resp = json.loads(opener.open(req, timeout=20).read().decode())
         if "necromancer" not in resp:
-            print(f"[warn] DeepSeek kw={kw!r} 响应异常: {str(resp)[:80]}", file=sys.stderr)
+            print(f"[warn] {company} kw={kw!r} 响应异常: {str(resp)[:80]}", file=sys.stderr)
             continue
         dec = subprocess.run(
             ["openssl", "enc", "-aes-128-cbc", "-d",
@@ -220,13 +243,77 @@ def fetch_deepseek():
         try:
             out = json.loads(dec.stdout.decode())
         except Exception:
-            print(f"[warn] DeepSeek kw={kw!r} 解密失败", file=sys.stderr)
+            print(f"[warn] {company} kw={kw!r} 解密失败", file=sys.stderr)
             continue
         rows = (out.get("data") or {}).get("jobs") or []
         for p in rows:
             add_row(p)
         polite()
     return jobs
+
+
+def fetch_deepseek():
+    return _fetch_moka("DeepSeek", "high-flyer", 140576, DS_PORTAL,
+                       ("", "算法", "开发", "数据", "工程", "产品", "研究"))
+
+
+def fetch_kimi():
+    # 官网入口 careers.kimi.com/social 跳 Moka（app.mokahr.com/apply/moonshot/148506?sourceToken=…）。
+    # 直访不带 token 会 302 循环，token 实时从官网提取防过期；提取失败则退回裸 URL 一试。
+    raw = http_get("https://careers.kimi.com/social").decode(errors="replace")
+    m = re.search(r'https://app\.mokahr\.com/apply/moonshot/[^"\'\\s]+', raw)
+    portal = (m.group(0) if m else "https://app.mokahr.com/apply/moonshot/148506").split("#")[0]
+    return _fetch_moka("Kimi(月之暗面)", "moonshot", 148506, portal,
+                       ("", "Agent", "产品", "工程", "算法", "研究", "运营", "数据"))
+
+
+# ---------------------------------------------------------------- MiniMax（飞书招聘门户）
+
+MM_PORTAL = "https://vrfi1sk8a0.jobs.feishu.cn"
+
+
+def fetch_minimax():
+    """MiniMax 社招（minimax.cn/careers → 飞书招聘）。
+    接口同字节款 search/job/posts，但裸 POST 被 WAF 拦 405——须先 GET 门户 index
+    拿会话 cookie，再带 Origin/Referer POST（2026-09-13 实测）。"""
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor())
+    opener.open(urllib.request.Request(f"{MM_PORTAL}/index/",
+                                       headers={"User-Agent": UA, "Accept": "*/*"}), timeout=20).read()
+    polite()
+    jobs = []
+    for kw in ("", "Agent", "LLM", "大模型", "产品", "工程"):
+        body = json.dumps({"keyword": kw, "limit": 20, "offset": 0,
+                           "job_category_id_list": [], "tag_id_list": [], "location_code_list": [],
+                           "subject_id_list": [], "recruitment_id_list": [],
+                           "portal_type": 2, "job_function_id_list": []}).encode()
+        req = urllib.request.Request(
+            f"{MM_PORTAL}/api/v1/search/job/posts", data=body,
+            headers={"User-Agent": UA, "Content-Type": "application/json", "Accept": "*/*",
+                     "Referer": f"{MM_PORTAL}/index/", "Origin": MM_PORTAL})
+        data = json.loads(opener.open(req, timeout=20).read().decode())
+        for p in (data.get("data") or {}).get("job_post_list") or []:
+            cat = (p.get("job_category") or {}).get("name", "") if isinstance(p.get("job_category"), dict) else ""
+            if cat and not any(c in cat for c in ("技术", "产品", "研发", "算法", "工程")):
+                continue
+            cities = "、".join(normalize_city(c.get("name", "")) for c in (p.get("city_list") or []))
+            jobs.append({
+                "company": "MiniMax",
+                "title": p.get("title", ""),
+                "city": cities,
+                "dept": "",
+                "category": cat,
+                "jd": (p.get("description") or "") + "\n" + (p.get("requirement") or ""),
+                "url": f"{MM_PORTAL}/index/position/{p.get('id')}/detail",
+                "updated": str(p.get("publish_time") or ""),
+                "kw": kw,
+            })
+        polite()
+    seen, out = set(), []
+    for j in jobs:
+        if j["url"] not in seen:
+            seen.add(j["url"])
+            out.append(j)
+    return out
 
 
 # ---------------------------------------------------------------- CKHR 群等无 API 渠道（收件箱）
@@ -334,7 +421,8 @@ def main():
     channels, failures = {}, []
 
     for name, fn in [("腾讯", fetch_tencent), ("字节", fetch_bytedance),
-                     ("DeepSeek", fetch_deepseek), ("电鸭", fetch_eleduck),
+                     ("DeepSeek", fetch_deepseek), ("Kimi", fetch_kimi),
+                     ("MiniMax", fetch_minimax), ("电鸭", fetch_eleduck),
                      ("CKHR群", fetch_inbox)]:
         try:
             channels[name] = fn()

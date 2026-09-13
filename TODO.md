@@ -27,9 +27,13 @@
   **背景**：全局注册表 2026-09-08 口径更新——项目名已定 `LegalAgent`（原名 LegalCounselAgent）、职称「法务Agent」、纯法务直属用户（财务职能暂时空缺）；但 GitHub 上 `xhqing/LegalAgent` 仓库从未创建（`xhqing/LegalCounselAgent` 也不存在），xhqing README 与 CyberRipple org README 里的 Justin 链接目前均为死链（点开 404）。
   **要做什么**：按「新建 Agent 项目脚手架与开源约定」完整立项——`gh repo create xhqing/LegalAgent --public` + 双语 README（含 logo 与三徽章 + Visitors）+ `CLAUDE.md`（角色：纯法务——合同起草审查、收款结构设计、尽调、证据链、纠纷应对、合规备忘；直属用户、跨组服务全部小组）+ 根目录 `AGENTS.md` 软链 + LICENSE + VERSION + CHANGELOG；建仓后各处链接自然生效，无需回改。
 
-- [ ] **T11** 大厂官方招聘平台注册建档 + 并入岗位巡查节奏（记录：2026-09-08；渠道决策见 `docs/channel-strategy.md` 第四渠道专节）
-  **背景**：用户 2026-09-08 拍板新增 DeepSeek（talent.deepseek.com）、字节（jobs.bytedance.com）、腾讯（careers.tencent.com）、阿里（talent.alibaba.com）四家官方社招平台为第四渠道（求职侧官网直投）。同日岗位简报管道已建成（`scripts/job_brief.py`，四通道实测打通：腾讯/字节免登录 API、DeepSeek 走 Moka ATS 含 AES 解密、电鸭 RSS；阿里接口 403 需浏览器会话，暂缺）。
-  **要做什么**：① 四家官网注册 + 在线简历建档（复用 backup/feishu 三份简历 PDF；DeepSeek 走 Moka 页面）；② 巡查节奏已自动化——跑 `python3 scripts/job_brief.py` 并入每日两次刷新（早 9:30 + 晚 21–22 点），产出 `docs/briefs/` 简报，阿里暂人工浏览；③ 首条投递按 SOP 记台账（source 记 `官网直投-公司名`）。投递纪律：每次 1–3 个高度匹配岗（官网投递留痕，字节面试官可查历史），fit_score 不达标不硬投。
+- [ ] **T11** 大厂官方招聘平台注册建档 + 并入岗位巡查节奏（记录：2026-09-08；2026-09-13 13:10 更新：清单由四家扩为七家，巡查管道同步扩容）
+  **背景**：用户 2026-09-08 拍板新增 DeepSeek（talent.deepseek.com）、字节（jobs.bytedance.com）、腾讯（careers.tencent.com）、阿里（talent.alibaba.com）四家官方社招平台为第四渠道（求职侧官网直投）；2026-09-13 再扩三家 AI 大模型公司——月之暗面（careers.kimi.com/social，跳 Moka ATS）、MiniMax（minimax.cn/careers → 飞书招聘）、智谱（zhipuai.cn/zh/joinus → 飞书招聘，有深圳岗）。巡查管道同日扩至七通道（腾讯/字节/DeepSeek/Kimi/MiniMax/电鸭/CKHR群）：Kimi 走 Moka ATS 与 DeepSeek 同款解密通道（portal 链接 sourceToken 实时提取）、MiniMax 走飞书招聘（需先拿门户会话 cookie）；阿里接口 403、智谱纯 SPA 未打通，两家暂人工浏览。
+  **要做什么**：① 七家官网注册 + 在线简历建档（复用 backup/feishu 三份简历 PDF；DeepSeek、月之暗面走 Moka 页面，MiniMax、智谱走飞书招聘门户）；② 巡查节奏已自动化——跑 `python3 scripts/job_brief.py` 并入每日两次刷新（早 9:30 + 晚 21–22 点），产出 `docs/briefs/` 简报，阿里、智谱暂人工浏览；③ 首条投递按 SOP 记台账（source 记 `官网直投-公司名`）。投递纪律：每次 1–3 个高度匹配岗（官网投递留痕，字节面试官可查历史），fit_score 不达标不硬投。
+
+- [ ] **T13** Upwork 升格可靠渠道后的建档预置（记录：2026-09-13 13:10）
+  **背景**：用户 2026-09-13 将 Upwork 列入可靠投递平台（原「备选·预置待命」定位作废，渠道决策见 `docs/channel-strategy.md`）——但 2026-09-05 定下的预置清单（注册 + 英文 profile + 作品集链接）从未实际执行，升格后建档成为正式待办。
+  **要做什么**：① 注册 Upwork + 英文 profile 建档（复用 Kit 项目英文 CV：ExecutiveAssistantAgent/docs/resume/ 下的 PDF）；② 挂作品集链接（github.com/xhqing）；③ profile 做足质量后按需投标（新号第一单靠低价竞标破零），投出后按 SOP 记台账（source 记 `Upwork`）。
 
 - [ ] **T8** 注册电鸭后连续 5 个工作日实测岗位密度，产出投入度建议（记录：2026-09-03 20:08；2026-09-05 23:44 更新：实测通道已升级——RSS 全站流免登录可刷（curl eleduck.com/feed/latest.xml），每日两次：早 9:30 + 晚 21-22 点，与用户确认的节奏一致，周日也照常刷（用户裁定：零成本、无损失）；周末发布密度低属正常，T7 触发器评估从周一起算真节奏）
   **背景**：T4 的实测剩余部分。记录表、计数口径、校准框架与触发规则已建好（`docs/density-log.md`），公开背景已记（2026-09-03 未登录观察：全站 20669 帖为八年累计值，招聘频道列表未登录被验证码拦截，密度待实测）。前置：用户完成电鸭注册（AI 无法代注册）。
