@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### 变更（岗位简报位置关扩重杭州 + 关键词表增「风控」）
+
+- **为什么改**：渠道位置口径迭代——位置关城市白名单扩展（决策背景与完整口径见 CHANGELOG.local.md 同日条目）；同时岗位筛选关键词表与新开的简历品类线对齐，「风控」作为业务领域词入强词表（与「量化」对称）。
+- **改了什么**（2026-09-13）：① `scripts/job_brief.py`——`CITY_GATE` 增「杭州」；位置分梯度改为广州 +10 / 深圳 +8 / 杭州 +6 / 远程 +10；`STRONG_KW` 增「风控」；模块 docstring 同步。② `docs/channel-strategy.md`（注：该文件在忽略目录，供本机使用）大厂节 base 过滤句与巡查段同步。全量实跑验证：九通道全绿（腾讯 261、字节 29、DeepSeek 32、Kimi 53、MiniMax 52、智谱 96、电鸭 25、CKHR 公众号 6），位置关外 333→293（40 条杭州岗浮出进推荐/次级），新简报 brief-20260913-1814.md。
+
 ### 变更（.zcode/skills 重建为指向 .pi/skills 的软链接）
 
 - **为什么改**：apply-writing skill 此前已从 `.zcode/skills/` 迁至 `.pi/skills/`（多工具共用一份 skill 源），迁移后项目级 `.zcode/skills/` 路径不复存在，ZCode 客户端在项目内发现不了该 skill。用户 2026-09-13 要求建立软链接恢复入口。
