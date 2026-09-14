@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+### 变更（726 文案与简历副本二轮修正：zcode-cli 归属如实化 + 删废弃的 rules 目录表述）
+
+- **为什么改**：用户 2026-09-14 二次澄清两点：① zcode-cli 并非「我定架构与验收标准、agent 写码」的原创项目，而是源自他人开源项目的二次开发（上游 3.8.1 版本基线，本人 43 个修补性 commit）——首轮修正时误把简历「AI 协作开发」整体模式声明套到该具体项目上，属推断错误；② 全局 `~/.claude/rules/` 目录已废弃删除（规则载体是 CLAUDE.md），「统一 skills/rules」表述指向不存在的功能。GitHub 查证佐证 ①（仓库版本从 3.8.1-26 起、commit 均为修补性质）；zcode-vsce 查证为 0.1.x 起步从零自研，保留主力仓库（待用户最终确认）。
+- **改了什么**（2026-09-14）：① `docs/apply-reason-726.md` 五处——语言句删 zcode-cli 举例（回归「Python 为主」干净版）；正文括号与交付物列表 CapabilityManagerAgent 行「skills/rules」改「skills 与（全局）规则」；交付物列表删 zcode-cli 行；「投递前必填」同步；诚实边界更新为两次澄清合并版（含 zcode-cli 面试口径）。② `tmp/resume-agent.txt` 同步三处（CapabilityManagerAgent 表述、周边工具链句协议逆向→对接、主力仓库删 zcode-cli）。简历正本改动见 ExecutiveAssistantAgent 同日条目。
+
+### 变更（726 申请文案与简历副本修正：删 JavaScript / TypeScript 失实能力表述）
+
+- **为什么改**：用户 2026-09-14 澄清不会 JavaScript / TypeScript，而 `docs/apply-reason-726.md` 写了「JavaScript/TypeScript 也常用」（源头为旧版算法简历技能表的误承）——属失实陈述，投出被面试戳穿会直接伤害可信度；文案尚未投出（台账无 726 记录），趁未出门修正。JD 原文为「精通 Python、JavaScript**或**其它编程语言」（或关系），Python 8 年即满足，无需 JS/TS。
+- **改了什么**（2026-09-14）：① `docs/apply-reason-726.md` 三处——语言句删「JavaScript/TypeScript 也常用」，改为如实口径（TS 项目 zcode-cli 定位为「我定架构与验收、agent 写码」的 AI 协作开发交付，与简历既有声明一致）；交付物列表 zcode-cli 行补注「AI 协作开发交付」；「投递前必填」新增诚实边界条目（含面试被问 TS 细节的作答口径）并修正「若想再加强」句。② `tmp/resume-risk.md`、`tmp/resume-agent.txt` 两份简历副本语言行同步删 JavaScript / TypeScript。在用简历正本（中/英）的同步修改见 ExecutiveAssistantAgent 同日 CHANGELOG 条目。
+
 ### 变更（岗位简报位置关扩重杭州 + 关键词表增「风控」）
 
 - **为什么改**：渠道位置口径迭代——位置关城市白名单扩展（决策背景与完整口径见 CHANGELOG.local.md 同日条目）；同时岗位筛选关键词表与新开的简历品类线对齐，「风控」作为业务领域词入强词表（与「量化」对称）。
