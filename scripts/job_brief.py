@@ -25,8 +25,10 @@
 fit_score 预打分口径（0-100，粗筛用，权重待 T9 用真实转化数据校准）：
   标题命中强关键词 +45（封顶）、命中中关键词 +15（封顶）
   JD 正文命中强关键词 +20 / 中关键词 +10（合计封顶 30）
-  位置：广州 +10 / 深圳 +8 / 杭州 +6 / 远程 +10；坐班其他城市 0 分但可通过位置关
-  位置关（硬筛）：坐班岗要求广州/深圳/杭州/远程之一，不通过者单独归档不进推荐
+  位置（2026-09-14 用户定）：远程正式岗 +12（优先级最高）/ 广州 +10 / 深圳 +8 / 杭州 +6；
+  三类高信誉雇主（知名大厂/知名大模型研发公司/知名量化私募）坐班岗不限地域——
+  豁免位置关、城市分统一 +10（地域不构成差异）；普通坐班岗其他城市 0 分但可通过位置关
+  位置关（硬筛）：普通坐班岗要求广州/深圳/杭州/远程之一，不通过者单独归档不进推荐；三类雇主豁免
 
 用法：python3 scripts/job_brief.py   （全部通道一次跑完，单通道失败不影响其余）
 产物：docs/briefs/brief-<时间戳>.md + docs/briefs/seen.json（已见岗位去重标记）
@@ -57,7 +59,17 @@ UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
 STRONG_KW = ["agent", "llm", "大模型", "aigc", "智能体", "ai 应用", "ai应用", "量化", "ai平台", "风控"]
 MID_KW = ["算法", "后端", "服务端", "数据", "平台", "基础设施", "产品经理", "python", "java", "go"]
 
-CITY_GATE = ["广州", "深圳", "杭州", "远程"]  # 坐班岗位置关；电鸭天然全远程
+CITY_GATE = ["广州", "深圳", "杭州", "远程"]  # 普通坐班岗位置关；电鸭天然全远程
+
+# 位置关豁免（2026-09-14 用户定）：知名大厂 / 知名大模型研发公司 / 知名量化私募的坐班岗
+# 不限地域——豁免位置关硬筛、城市分统一 +10（地域不构成差异，与本地同权）。当前通道七家
+# 全属前两类；量化私募暂无直投通道，CKHR / BOSS 渠道出现这三类雇主时由终审按同规则处理。
+# 新通道接入或雇主品类变化时对照三类定义维护本名单。
+EXEMPT_EMPLOYERS = ["腾讯", "字节", "阿里", "DeepSeek", "Kimi", "月之暗面", "MiniMax", "智谱"]
+
+
+def employer_exempt(j):
+    return any(e in (j["company"] or "") for e in EXEMPT_EMPLOYERS)
 
 # Moka ATS 的城市字段返回区名（海淀区/南山区…），映射到城市名才能过位置关（深圳南山岗不能漏）
 DISTRICT_CITY = {
@@ -465,19 +477,23 @@ def score_job(j):
     jd_m = hits(j["jd"], MID_KW)
     s = min(45, 45 * bool(title_hits_s)) + min(15, 15 * bool(title_hits_m))
     s += min(20, 5 * len(jd_s)) + min(10, 2 * len(jd_m))
-    if "广州" in j["city"]:
+    if employer_exempt(j):
+        s += 10  # 三类雇主不限地域：城市不构成差异，与本地同权
+    elif "广州" in j["city"]:
         s += 10
     elif "深圳" in j["city"]:
         s += 8
     elif "杭州" in j["city"]:
         s += 6
     elif "远程" in j["city"]:
-        s += 10
+        s += 12  # 远程正式岗优先级最高（正式性由终审甄别；电鸭零活单列不适用）
     reason = []
     if title_hits_s:
         reason.append("标题命中: " + "/".join(title_hits_s[:3]))
     if jd_s:
         reason.append("JD命中: " + "/".join(jd_s[:3]))
+    if employer_exempt(j):
+        reason.append("三类雇主不限地域")
     return min(100, s), "；".join(reason) or "关键词弱相关"
 
 
@@ -527,7 +543,7 @@ def main():
             if name == "CKHR公众号":
                 ckehr.append(j)  # CKHR 单列全量展示：标题营销式长标题、JD 在登录墙内，
                 continue        # 按大厂口径打分会把中词技术岗埋掉，终审由人看标题
-            if not city_ok(j["city"]):
+            if not employer_exempt(j) and not city_ok(j["city"]):
                 location_blocked.append(j)
                 continue
             s, reason = score_job(j)
@@ -562,7 +578,7 @@ def main():
     lines += ["", "## 其他过位置关（未进推荐位）", ""]
     lines += [row(j) for j in rest] or ["（无）"]
     lines += [
-        "", f"## 位置关不通过（{len(location_blocked)} 条，北京/杭州等，仅留痕）", "",
+        "", f"## 位置关不通过（{len(location_blocked)} 条，仅留痕；三类高信誉雇主豁免不在此列）", "",
         "| 公司 | 岗位 | 城市 |", "|---|---|---|",
     ]
     lines += [f'| {j["company"]} | {j["title"]} | {j["city"]} |' for j in location_blocked] or ["（无）"]
