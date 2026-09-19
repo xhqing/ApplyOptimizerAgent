@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### 变更（岗位简报管道接入 LinkedIn：免登录 guest 端点通道，十通道全绿）
+
+- **为什么改**：用户 2026-09-19 确认 LinkedIn 入渠道组合（双线：被动靠 profile 建档、主动需岗位数据源），问能否自动拉取上面的远程岗——实测 jobs-guest guest 端点免登录可用（列表 + 详情均 200），无需账号零封号风险，遂接入为第十通道，补齐「海外 / 全球远程正式岗」这条此前空白的线。
+- **改了什么**（2026-09-19）：① `scripts/job_brief.py`——新增 `fetch_linkedin()`：列表端点 `seeMoreJobPostings/search`（f_WT=2 官方 workplace-type=remote 过滤，Agent / LLM / 大模型 / 量化 / Quant 五关键词 × Remote / China 两地点桶 × 各翻两页，guest 每页约 10 条），解析 `data-entity-urn` 岗位 ID / 标题 / 公司 / 地点 / ISO 日期；详情端点 `jobPosting/{id}` 拉 JD 正文 + 发布时间 + 申请人数，只对标题强命中的岗拉（上限 40 / run，seen.json 老岗不重复拉）；城市记「远程·<原地点>」过远程位置关 +12；页级 try/except 抗限流，全部页失败才抛异常标通道失败；双重 HTML 实体解码（LinkedIn 偶发 `&amp;amp;` 双重编码）。② `STRONG_KW` / `MID_KW` 增英文同义词（machine learning / ml engineer / generative ai / genai / nlp / deep learning / ai engineer / quant / 机器学习；engineer / developer / scientist / research）——LinkedIn 英文标题占多数，原中文词表覆盖不到；对国内通道的连带影响是 JD 含英文 ML 词的岗小幅加分，属语义对齐。③ 简报头部加地理限制提示行（时区 / 签证 / US-only 由终审看 JD）。④ `docs/channel-strategy.md`（注：该文件在忽略目录，供本机使用）新增 LinkedIn 专节 + 决策清单 + 巡查段同步。全量实跑验证：十通道全绿（腾讯 261、字节 29、DeepSeek 31、Kimi 54、MiniMax 51、智谱 96、电鸭 25、CKHR 公众号 5、LinkedIn 161），LinkedIn 全球与国内远程岗（含硕软上海 / 广州海鹚 / 平安健康等中文雇主远程岗）进推荐位头部；新简报 brief-20260919-1059.md。
+
 ### 变更（岗位简报位置规则升级：三类高信誉雇主豁免位置关 + 远程位置分提至最高）
 
 - **为什么改**：用户 2026-09-14 立「岗位地域优先级」三条规定（决策背景见 CHANGELOG.local.md 同日条目）——远程正式岗位优先级最高；知名大厂 / 知名大模型研发公司 / 知名量化私募坐班岗不限地域；普通坐班岗维持广州优先梯度。原位置关白名单硬筛把七家直投大厂的京沪岗全部挡在推荐区外，需在预筛层落地新规则。

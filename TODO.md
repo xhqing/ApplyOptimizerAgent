@@ -23,6 +23,10 @@
 
 ## 🟢 绿色紧急度
 
+- [ ] **T14** LinkedIn 双线渠道落地：profile 建档（被动）+ 首投并入巡查节奏（记录：2026-09-19 11:00；2026-09-19 11:09 更新：基线口径改为「开工前截存快照、不设等待期」＋新增 GitHub 徽章挂链一步）
+  **背景**：用户 2026-09-19 拍板 LinkedIn 入渠道组合（决策与官方文档核实结论见 `docs/channel-strategy.md` LinkedIn 专节）——被动线靠 profile 建档收猎头流量，主动线拉岗管道已当日打通（job_brief.py 第十通道，十通道全绿）。被动线是全组合成本结构最好的动作（一次性投入、零边际成本），但建档为用户手工操作（涉账号安全不走自动化）。
+  **要做什么**：① profile 建档到 All-star 档（头像、标题、所在地、现职位、≥2 段经历、教育、≥5 技能、≥50 人脉），关键词对齐三份现有简历方向，Featured 区挂 github.com/xhqing 作品集；② 开 Open to Work（仅猎头可见，与 BOSS「在职-考虑机会」同姿态；连续两次不回 InMail 会被自动摘标记，每周扫一次消息）；③ **开工前截存 Analytics 快照**（资料浏览数有 90 天窗口可回溯、搜索曝光数取当周值、「被搜出的头衔」列表）——**不为基线推迟动工**：被动渠道零边际成本，晚一周动工就是纯损失，且去留判据用绝对线不依赖前后对照；④ 完成后四周对照曝光与关键词方向变化（能拿多少对照算多少），**八周零猎头接触 → 降级为挂着不投入**（绝对判据）；⑤ 主动线首投按 SOP 记台账（source 记 `LinkedIn`），地理限制（时区 / 签证 / US-only）终审时看 JD；⑥ 建档完成后把 LinkedIn 入口挂上 GitHub profile README（EN/CN 双版同步改）：形态用徽章行 badge（与 Followers/Sponsor/Visits 并排），**不开「open to work」横幅**——GitHub 主页同时是 20-agent 团队与产品的商业橱窗，求职信号留在 LinkedIn 的 recruiter-only 里分工干净；履历全文不复制进 README（履历权威源：三份 PDF 简历 + LinkedIn，GitHub 只做定位与作品集入口）；所在地字段与 GitHub 已公开口径保持一致（按真实情况填，海外远程岗按所在地做合规/payroll 筛选）。改动属 git 写操作，执行前征得用户同意。
+
 - [ ] **T12** LegalAgent（Justin）GitHub 仓库立项待建（记录：2026-09-08）
   **背景**：全局注册表 2026-09-08 口径更新——项目名已定 `LegalAgent`（原名 LegalCounselAgent）、职称「法务Agent」、纯法务直属用户（财务职能暂时空缺）；但 GitHub 上 `xhqing/LegalAgent` 仓库从未创建（`xhqing/LegalCounselAgent` 也不存在），xhqing README 与 CyberRipple org README 里的 Justin 链接目前均为死链（点开 404）。
   **要做什么**：按「新建 Agent 项目脚手架与开源约定」完整立项——`gh repo create xhqing/LegalAgent --public` + 双语 README（含 logo 与三徽章 + Visitors）+ `CLAUDE.md`（角色：纯法务——合同起草审查、收款结构设计、尽调、证据链、纠纷应对、合规备忘；直属用户、跨组服务全部小组）+ 根目录 `AGENTS.md` 软链 + LICENSE + VERSION + CHANGELOG；建仓后各处链接自然生效，无需回改。

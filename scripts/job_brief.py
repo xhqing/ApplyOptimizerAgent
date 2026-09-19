@@ -21,6 +21,9 @@
   CKHR公众号 搜狗微信文章搜索（type=2）直连 curl              标题+摘要级，
           2026-09-13 打通；简报单列全量段不过滤（营销式长标题按大厂口径
           打分会埋掉中词技术岗）；群消息仍走 inbox.md 人工粘贴通道
+  LinkedIn www.linkedin.com jobs-guest guest 端点             免登录（2026-09-19
+          打通）：列表 seeMoreJobPostings/search（f_WT=2 远程过滤，关键词 ×
+          Remote/China 两地点桶）+ 详情 jobPosting/{id}（只拉标题强命中的岗）
 
 fit_score 预打分口径（0-100，粗筛用，权重待 T9 用真实转化数据校准）：
   标题命中强关键词 +45（封顶）、命中中关键词 +15（封顶）
@@ -56,8 +59,14 @@ UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36")
 
 # 用户三条简历方向：AI应用Agent开发 / AI产品经理Agent方向 / 量化开发研究
-STRONG_KW = ["agent", "llm", "大模型", "aigc", "智能体", "ai 应用", "ai应用", "量化", "ai平台", "风控"]
-MID_KW = ["算法", "后端", "服务端", "数据", "平台", "基础设施", "产品经理", "python", "java", "go"]
+# 2026-09-19 增英文同义词：接入 LinkedIn 通道后英文标题占多数——machine learning /
+# generative ai / genai / nlp / quant 等是既有中文强词的英文对应，「机器学习」是「大模型」
+# 的传统称呼。对国内通道的连带影响：JD 含英文 ML 词的岗小幅加分，属预期内的语义对齐。
+STRONG_KW = ["agent", "llm", "大模型", "aigc", "智能体", "ai 应用", "ai应用", "量化", "ai平台", "风控",
+             "机器学习", "machine learning", "ml engineer", "generative ai", "genai", "nlp",
+             "deep learning", "ai engineer", "quant"]
+MID_KW = ["算法", "后端", "服务端", "数据", "平台", "基础设施", "产品经理", "python", "java", "go",
+          "engineer", "developer", "scientist", "research"]
 
 CITY_GATE = ["广州", "深圳", "杭州", "远程"]  # 普通坐班岗位置关；电鸭天然全远程
 
@@ -463,6 +472,109 @@ def fetch_eleduck():
     return items
 
 
+# ---------------------------------------------------------------- LinkedIn（免登录 guest 接口）
+
+LI_SEARCH = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
+LI_DETAIL = "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{id}"
+LI_KWS = ("Agent", "LLM", "大模型", "量化", "Quant")
+LI_LOCS = ("Remote", "China")  # f_WT=2 远程过滤下的两个地点桶：全球远程 + 国内远程
+LI_MAX_DETAIL = 40  # 详情页拉取上限：每岗一次请求，只拉标题强命中且本 run 未见过的岗
+
+
+def _li_strip(s):
+    t = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", s or ""))
+    for _ in range(3):  # LinkedIn 偶发双重编码（&amp;amp;），解到稳定为止
+        prev, t = t, html_lib.unescape(t)
+        if t == prev:
+            break
+    return t.strip()
+
+
+def _li_get(url):
+    polite()  # 每次请求前 1s 间隔（含详情页），guest 接口免登录但 IP 级限流偶发
+    return http_get(url).decode("utf-8", "ignore")
+
+
+def fetch_linkedin():
+    """LinkedIn 岗位搜索（2026-09-19 实测打通，免登录 guest 端点）。
+    列表：seeMoreJobPostings/search?keywords=&location=&f_WT=2&start=——guest 每页
+    约 10 条（登录版 25），start=0/25 翻两页；f_WT=2 是 LinkedIn 官方 workplace-type
+    =remote 过滤，返回岗位全部为远程工作类型。详情：jobPosting/{id} 拉 JD 正文 /
+    发布时间 / 申请人数——每岗一次请求有成本，只对标题命中强关键词的岗拉（上限
+    LI_MAX_DETAIL），seen.json 里已见过的老岗不重复拉。
+    地理限制坑：f_WT=2 的全球远程岗很多限美国 / 加拿大 / 拉美时区——city 记
+    「远程·<原地点>」保留线索，地理可行性（时区 / 签证 / US-only）由终审看 JD 判断。
+    无账号参与 = 无封号风险；IP 级限流页级跳过，全失败才抛异常标通道失败。
+    """
+    seen = load_seen()
+    jobs, failed = [], 0
+    for kw in LI_KWS:
+        for loc in LI_LOCS:
+            for start in (0, 25):
+                url = (f"{LI_SEARCH}?keywords={urllib.request.quote(kw)}"
+                       f"&location={urllib.request.quote(loc)}&f_TPR=&f_WT=2&start={start}")
+                try:
+                    page = _li_get(url)
+                except Exception:
+                    failed += 1
+                    continue
+                for seg in page.split("<li>")[1:]:
+                    if "base-search-card" not in seg:
+                        continue
+                    m = re.search(r'data-entity-urn="urn:li:jobPosting:(\d+)"', seg)
+                    tm = re.search(r'base-search-card__title">(.*?)</h3>', seg, re.S)
+                    if not (m and tm):
+                        continue
+                    sm = re.search(r'base-search-card__subtitle">(.*?)</h4>', seg, re.S)
+                    lm = re.search(r'job-search-card__location">(.*?)</span>', seg, re.S)
+                    dm = re.search(r'job-search-card__listdate" datetime="([^"]+)"', seg)
+                    jobs.append({
+                        "company": _li_strip(sm.group(1)) if sm else "LinkedIn岗位",
+                        "title": _li_strip(tm.group(1)),
+                        "city": "远程·" + (_li_strip(lm.group(1)) if lm else "?")[:24],
+                        "dept": "",
+                        "category": "",
+                        "jd": "",
+                        "url": f"https://www.linkedin.com/jobs/view/{m.group(1)}",
+                        "updated": dm.group(1) if dm else "",
+                        "kw": kw,
+                    })
+    # 跨关键词 / 地点重复召回去重（按岗位 URL）
+    seen_ids, out = set(), []
+    for j in jobs:
+        if j["url"] not in seen_ids:
+            seen_ids.add(j["url"])
+            out.append(j)
+    # 详情拉取：只拉标题强命中且上一 run 已见的之外的新岗（与 main() 的 company|title 键同构）
+    fetched = 0
+    for j in out:
+        if fetched >= LI_MAX_DETAIL:
+            break
+        if not hits(j["title"], STRONG_KW):
+            continue
+        if f'{j["company"]}|{j["title"]}' in seen:
+            continue
+        jid = j["url"].rsplit("/", 1)[-1]
+        try:
+            d = _li_get(LI_DETAIL.format(id=jid))
+        except Exception:
+            continue
+        dm = re.search(r"show-more-less-html__markup[^>]*>(.*?)</div>", d, re.S)
+        pm = re.search(r"posted-time-ago__text[^>]*>(.*?)</", d, re.S)
+        am = re.search(r"num-applicants__caption[^>]*>(.*?)</", d, re.S)
+        jd = _li_strip(dm.group(1)) if dm else ""
+        meta = []
+        if pm:
+            meta.append("posted " + _li_strip(pm.group(1)))
+        if am:
+            meta.append(_li_strip(am.group(1)))
+        j["jd"] = (jd[:3900] + "\n" + "; ".join(meta))[:4000] if meta else jd[:4000]
+        fetched += 1
+    if not out and failed >= len(LI_KWS) * len(LI_LOCS) * 2:
+        raise RuntimeError(f"guest 接口全部页失败（{failed} 页，可能被限流或页面改版）")
+    return out
+
+
 # ---------------------------------------------------------------- 筛选与打分
 
 def hits(text, kws):
@@ -520,7 +632,8 @@ def main():
     for name, fn in [("腾讯", fetch_tencent), ("字节", fetch_bytedance),
                      ("DeepSeek", fetch_deepseek), ("Kimi", fetch_kimi),
                      ("MiniMax", fetch_minimax), ("智谱", fetch_zhipu), ("电鸭", fetch_eleduck),
-                     ("CKHR群", fetch_inbox), ("CKHR公众号", fetch_ckhr)]:
+                     ("CKHR群", fetch_inbox), ("CKHR公众号", fetch_ckhr),
+                     ("LinkedIn", fetch_linkedin)]:
         try:
             channels[name] = fn()
             print(f"[ok] {name}: {len(channels[name])} 条", file=sys.stderr)
@@ -563,6 +676,7 @@ def main():
         "",
         f"> 机器预筛产物，fit_score 为粗筛分（口径见 scripts/job_brief.py 头注释），投递由人终审。",
         f"> 城市字段取自平台 API 主城市，多城岗位（标题含多城）以 JD 页为准。",
+        f"> LinkedIn 通道为全球远程岗（f_WT=2），时区 / 签证 / US-only 等地理限制由终审看 JD 判断。",
         f"> 通道状态：{'、'.join(f'{k} {len(v)}条' for k, v in channels.items())}"
         + (f"；失败：{'；'.join(failures)}" if failures else "；全部成功"),
         "",
