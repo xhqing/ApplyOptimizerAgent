@@ -23,6 +23,10 @@
 
 ## 🟢 绿色紧急度
 
+- [ ] **T15** WWR 通道两周增量评估（记录：2026-09-24 12:52）
+  **背景**：2026-09-24 WWR 接入巡查管道（第十一通道），定位「低成本试点」——首次实跑 43 条过预筛、2 条进推荐位（Databricks AI Engineer 98 分、Sticker Mule AI agent engineer 81 分）。渠道文档定「跑 2 周统计增量有效岗再定去留」。同日核实（官方 FAQ）：浏览与申请需账号（免费 Basic 即可，Pro / TopAccess 不值），巡查通道走公开 RSS 零账号参与。
+  **要做什么**：① 投 WWR 岗位前注册免费 Basic 账号（用户执行，投递前置）；② 从 2026-09-24 起满两周（至 10-08）后统计：WWR 通道新增去重岗位数、进推荐位数、实际可投数（时区 / 签证 / 账号门槛过滤后的）；③ 增量有效岗 ≥3 条/两周 → 保留；否则撤通道或降低抓取频率；④ 结论回写 `docs/channel-strategy.md` 评估节 + 记 CHANGELOG。
+
 - [ ] **T14** LinkedIn 双线渠道落地：profile 建档（被动）+ 首投并入巡查节奏（记录：2026-09-19 11:00；2026-09-19 11:09 更新：基线口径改为「开工前截存快照、不设等待期」＋新增 GitHub 徽章挂链一步）
   **背景**：用户 2026-09-19 拍板 LinkedIn 入渠道组合（决策与官方文档核实结论见 `docs/channel-strategy.md` LinkedIn 专节）——被动线靠 profile 建档收猎头流量，主动线拉岗管道已当日打通（job_brief.py 第十通道，十通道全绿）。被动线是全组合成本结构最好的动作（一次性投入、零边际成本），但建档为用户手工操作（涉账号安全不走自动化）。
   **要做什么**：① profile 建档到 All-star 档（头像、标题、所在地、现职位、≥2 段经历、教育、≥5 技能、≥50 人脉），关键词对齐三份现有简历方向，Featured 区挂 github.com/xhqing 作品集；② 开 Open to Work（仅猎头可见，与 BOSS「在职-考虑机会」同姿态；连续两次不回 InMail 会被自动摘标记，每周扫一次消息）；③ **开工前截存 Analytics 快照**（资料浏览数有 90 天窗口可回溯、搜索曝光数取当周值、「被搜出的头衔」列表）——**不为基线推迟动工**：被动渠道零边际成本，晚一周动工就是纯损失，且去留判据用绝对线不依赖前后对照；④ 完成后四周对照曝光与关键词方向变化（能拿多少对照算多少），**八周零猎头接触 → 降级为挂着不投入**（绝对判据）；⑤ 主动线首投按 SOP 记台账（source 记 `LinkedIn`），地理限制（时区 / 签证 / US-only）终审时看 JD；⑥ 建档完成后把 LinkedIn 入口挂上 GitHub profile README（EN/CN 双版同步改）：形态用徽章行 badge（与 Followers/Sponsor/Visits 并排），**不开「open to work」横幅**——GitHub 主页同时是 20-agent 团队与产品的商业橱窗，求职信号留在 LinkedIn 的 recruiter-only 里分工干净；履历全文不复制进 README（履历权威源：三份 PDF 简历 + LinkedIn，GitHub 只做定位与作品集入口）；所在地字段与 GitHub 已公开口径保持一致（按真实情况填，海外远程岗按所在地做合规/payroll 筛选）。改动属 git 写操作，执行前征得用户同意。
@@ -35,9 +39,11 @@
   **背景**：用户 2026-09-08 拍板新增 DeepSeek（talent.deepseek.com）、字节（jobs.bytedance.com）、腾讯（careers.tencent.com）、阿里（talent.alibaba.com）四家官方社招平台为第四渠道（求职侧官网直投）；2026-09-13 再扩三家 AI 大模型公司——月之暗面（careers.kimi.com/social，跳 Moka ATS）、MiniMax（minimax.cn/careers → 飞书招聘）、智谱（zhipuai.cn/zh/joinus → 飞书招聘，有深圳岗）。巡查管道同日扩容，2026-09-13 晚些时候智谱通道实测打通（门户域名直访 + 飞书同款接口，详见 CHANGELOG）：现八通道自动拉取（腾讯/字节/DeepSeek/Kimi/MiniMax/智谱/电鸭/CKHR群），仅阿里一家人工浏览（接口 403 token 防护）。
   **要做什么**：① 七家官网注册 + 在线简历建档（复用 backup/feishu 三份简历 PDF；DeepSeek、月之暗面走 Moka 页面，MiniMax、智谱走飞书招聘门户）；② 巡查节奏已自动化——跑 `python3 scripts/job_brief.py` 并入每日两次刷新（早 9:30 + 晚 21–22 点），产出 `docs/briefs/` 简报（八通道：智谱 2026-09-13 已入管道），阿里暂人工浏览；③ 首条投递按 SOP 记台账（source 记 `官网直投-公司名`）。投递纪律：每次 1–3 个高度匹配岗（官网投递留痕，字节面试官可查历史），fit_score 不达标不硬投。（记录时间同步：2026-09-13 13:55）
 
-- [ ] **T13** Upwork 升格可靠渠道后的建档预置（记录：2026-09-13 13:10）
-  **背景**：用户 2026-09-13 将 Upwork 列入可靠投递平台（原「备选·预置待命」定位作废，渠道决策见 `docs/channel-strategy.md`）——但 2026-09-05 定下的预置清单（注册 + 英文 profile + 作品集链接）从未实际执行，升格后建档成为正式待办。
-  **要做什么**：① 注册 Upwork + 英文 profile 建档（复用 Kit 项目英文 CV：ExecutiveAssistantAgent/docs/resume/ 下的 PDF）；② 挂作品集链接（github.com/xhqing）；③ profile 做足质量后按需投标（新号第一单靠低价竞标破零），投出后按 SOP 记台账（source 记 `Upwork`）。
+- [ ] **T13** Upwork 注册 + Profile 建档（用户执行清单；记录：2026-09-13 13:10；2026-09-24 16:41 更新：用户定「先做」、列为当前执行优先，重整为可逐项打勾的执行清单）
+  **背景**：用户 2026-09-13 将 Upwork 列入可靠投递平台（渠道决策见 `docs/channel-strategy.md`）；2026-09-24 拍板执行建档并列为当前执行优先。Hopkins 侧可预做的已做完（`docs/upwork-profile.md` 材料包），本条剩余全部为用户平台操作（注册涉身份验证与收款信息，AI 不代注册）。
+  **用户执行清单（登录 upwork.com 逐项做）**：① 注册——Sign up → 选「Work（I'm a freelancer）」；② 填报——按 `docs/upwork-profile.md` 逐字段：Title（三选一）/ Overview（直接粘贴）/ Employment History / Skills 十个 / 语言与时区；③ 作品集——上传五条（材料包已给标题 + 说明 + 链接，仓库名均核对过）；④ 身份验证——ID 验证（审核 24-48 小时）；⑤ 收款——绑定 Payoneer；⑥ 费率——拍板后填入（材料包给市场带，建议起步 $35-50）。
+  **完成标准**：profile 完整 + 作品集五条上线 + 收款绑定完成 → 本条移入归档，投标并入日常巡查节奏。
+  **后续（建档完成后）**：按需投标（免费账户月约 10 个 Connects，优先投 4-6 Connects 的强匹配小单），提案信走 apply-writing 生成，投出后按 SOP 记台账（source 记 `Upwork`，`cost_money` 记 Connects 折算）。
 
 - [ ] **T8** 注册电鸭后连续 5 个工作日实测岗位密度，产出投入度建议（记录：2026-09-03 20:08；2026-09-05 23:44 更新：实测通道已升级——RSS 全站流免登录可刷（curl eleduck.com/feed/latest.xml），每日两次：早 9:30 + 晚 21-22 点，与用户确认的节奏一致，周日也照常刷（用户裁定：零成本、无损失）；周末发布密度低属正常，T7 触发器评估从周一起算真节奏）
   **背景**：T4 的实测剩余部分。记录表、计数口径、校准框架与触发规则已建好（`docs/density-log.md`），公开背景已记（2026-09-03 未登录观察：全站 20669 帖为八年累计值，招聘频道列表未登录被验证码拦截，密度待实测）。前置：用户完成电鸭注册（AI 无法代注册）。

@@ -24,6 +24,10 @@
   LinkedIn www.linkedin.com jobs-guest guest 端点             免登录（2026-09-19
           打通）：列表 seeMoreJobPostings/search（f_WT=2 远程过滤，关键词 ×
           Remote/China 两地点桶）+ 详情 jobPosting/{id}（只拉标题强命中的岗）
+  WWR     weworkremotely.com/remote-jobs.rss RSS              免登录（2026-09-24
+          打通）：一手源（公司直发），RSS 内含 JD / skills / category 全量字段，
+          无需拉详情页；通道级预筛只留技术/产品/设计类与关键词命中岗（全量含
+          大量客服/销售岗，不预筛会让简报膨胀百行）
 
 fit_score 预打分口径（0-100，粗筛用，权重待 T9 用真实转化数据校准）：
   标题命中强关键词 +45（封顶）、命中中关键词 +15（封顶）
@@ -575,6 +579,51 @@ def fetch_linkedin():
     return out
 
 
+# ---------------------------------------------------------------- We Work Remotely RSS
+
+WWR_FEED = "https://weworkremotely.com/remote-jobs.rss"
+# 通道级预筛：WWR 全量含大量客服 / 销售 / 管理岗，只留技术 / 产品 / 设计类
+# 与任意类目下命中关键词的岗（进简报后仍走统一位置关与打分）。预筛依据是平台
+# 标准 category 字段与关键词双条件，不像 CKHR 那样会误伤营销式长标题岗。
+WWR_KEEP_CATS = ("Full-Stack Programming", "Back-End Programming", "Front-End Programming",
+                 "DevOps and Sysadmin", "Design", "Product")
+
+
+def fetch_wwr():
+    """We Work Remotely RSS（2026-09-24 打通）。
+    一手源（公司直接发岗、非聚合），RSS 内含 company / region / skills / 完整 JD，
+    单次请求即可完成，无需详情页。
+    地域：region 多为 Anywhere in the World，也有 North America Only 等限定写法
+    ——city 记「远程」或「远程·<限定>」保留线索，时区 / 签证限制由终审看 JD 判断。
+    """
+    xml = http_get(WWR_FEED, timeout=25).decode(errors="replace")
+    root = ET.fromstring(xml)  # RSS 无默认命名空间，media:/dc: 前缀不影响 item 迭代
+    out = []
+    for item in root.iter("item"):
+        raw_title = (item.findtext("title") or "").strip()
+        link = (item.findtext("link") or "").strip()
+        region = (item.findtext("region") or "").strip()
+        category = (item.findtext("category") or "").strip()
+        skills = re.sub(r"\s+", " ", (item.findtext("skills") or "")).strip()
+        jtype = (item.findtext("type") or "").strip()
+        desc = html_lib.unescape(re.sub(r"<[^>]+>", " ", item.findtext("description") or ""))
+        desc = re.sub(r"\s+", " ", desc).strip()
+        company, _, title = raw_title.partition(": ")
+        if not title:
+            company, title = "WWR", raw_title
+        jd = f"[{category} · {jtype} · {skills}] {desc}" if skills else f"[{category} · {jtype}] {desc}"
+        if category not in WWR_KEEP_CATS and not hits(raw_title, STRONG_KW):
+            continue  # 类目外的岗只看标题强词（MID_KW 含 go 这类宽词，标题级也有 Chicago 类误报）
+        pm = item.findtext("pubDate") or ""
+        dm = re.search(r"(\d{1,2} \w{3} \d{4})", pm)
+        updated = datetime.strptime(dm.group(1), "%d %b %Y").strftime("%Y-%m-%d") if dm else ""
+        out.append({"company": company, "title": title,
+                    "city": "远程" if "anywhere" in region.lower() else "远程·" + region[:24],
+                    "dept": "", "category": category, "jd": jd[:4000], "url": link,
+                    "updated": updated, "kw": ""})
+    return out
+
+
 # ---------------------------------------------------------------- 筛选与打分
 
 def hits(text, kws):
@@ -633,7 +682,7 @@ def main():
                      ("DeepSeek", fetch_deepseek), ("Kimi", fetch_kimi),
                      ("MiniMax", fetch_minimax), ("智谱", fetch_zhipu), ("电鸭", fetch_eleduck),
                      ("CKHR群", fetch_inbox), ("CKHR公众号", fetch_ckhr),
-                     ("LinkedIn", fetch_linkedin)]:
+                     ("LinkedIn", fetch_linkedin), ("WWR", fetch_wwr)]:
         try:
             channels[name] = fn()
             print(f"[ok] {name}: {len(channels[name])} 条", file=sys.stderr)
@@ -676,7 +725,7 @@ def main():
         "",
         f"> 机器预筛产物，fit_score 为粗筛分（口径见 scripts/job_brief.py 头注释），投递由人终审。",
         f"> 城市字段取自平台 API 主城市，多城岗位（标题含多城）以 JD 页为准。",
-        f"> LinkedIn 通道为全球远程岗（f_WT=2），时区 / 签证 / US-only 等地理限制由终审看 JD 判断。",
+        f"> LinkedIn / WWR 通道为全球远程岗，时区 / 签证 / US-only 等地理限制由终审看 JD 判断。",
         f"> 通道状态：{'、'.join(f'{k} {len(v)}条' for k, v in channels.items())}"
         + (f"；失败：{'；'.join(failures)}" if failures else "；全部成功"),
         "",

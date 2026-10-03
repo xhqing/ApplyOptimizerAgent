@@ -4,6 +4,36 @@
 
 ## [Unreleased]
 
+### 变更（TODO T13 重整为用户执行清单：Upwork 注册与建档）
+
+- **为什么改**：用户 2026-09-24 定「先把 Upwork 注册并完善 Profile」为当前执行优先，要求待办可执行化——原 T13 是混合条目（材料准备 + 用户操作 + 后续投标三层混排），用户执行部分需要逐步可打勾的清单。
+- **改了什么**（2026-09-24）：`TODO.md` T13 标题改为「Upwork 注册 + Profile 建档（用户执行清单）」，用户操作重整为六步清单（注册 / 填报 / 作品集 / 身份验证 / 收款 / 费率）+ 完成标准 + 后续投标路径；标注「当前执行优先」；条目保持在绿色紧急度区（颜色是「不修会怎样」的口径，与执行顺序无关）。无代码变更。
+
+### 变更（账号注册时机判据立规：被动通道 × 声誉系统 × 审核延迟）
+
+- **为什么改**：用户 2026-09-24 追问「WWR 建议用时再注册、Upwork 为何建议先注册」——两条建议需用同一判据收束，避免看上去自相矛盾；沉淀为可复用规则后，后续渠道（如 Toptal、Remote OK）的注册决策直接套用。
+- **改了什么**（2026-09-24）：`docs/channel-strategy.md`（注：忽略目录）新增「账号注册时机判据」节——判据：账号是否在「不操作时」也产生价值 × 是否有时效前置 × 注册与维护成本；早注册列（Upwork：客户搜 talent pool 发邀请 + JSS 声誉积累 + 24-48h 验证；LinkedIn 建档）；用时再注册列（WWR：雇主无候选人搜索通道、账号无声誉系统、Basic 注册即用）；付费层（WWR Pro / TopAccess 类）不属本判据、走渠道评估期望值口径。
+
+### 变更（WWR 账号要求核实：官方 FAQ 确认需账号，策略定为免费 Basic 层）
+
+- **为什么改**：用户 2026-09-24 问「WWR 不要注册吗」——评估阶段按求职板惯例（投递走公司 ATS）未细究账号要求，第三方评测信息分歧（一说需要账号、一说不需要），需以官方为准核实。
+- **改了什么**（2026-09-24）：核实官方 FAQ 后更新 `docs/channel-strategy.md`（注：忽略目录）——新增「WWR 账号要求」段：官方明文浏览与申请需账号（2025-2026 改版引入）；三档会员（Basic 免费 / Pro $14.95/月×12 个月承诺 / TopAccess $29.95/月×12 个月承诺）与适用性；外链跳转类岗位申请不受订阅限制；策略定为「巡查零账号 + 投递用免费 Basic、不买 Pro / TopAccess」。`TODO.md` T15 补账号前置。`scripts/job_brief.py` 不受影响（公开 RSS 抓取无需账号，实测不变）。
+
+### 变更（T13 Upwork 建档材料包：英文 profile 全套文案 + 首单策略）
+
+- **为什么改**：用户 2026-09-24 拍板执行 T13（Upwork 升格后建档落地）——注册为用户手工操作，先把可预先备好的英文 profile 全套文案做足（新号无评价阶段，profile 本身是唯一能提前积累的资产）；材料素材取自现有英文简历与 GitHub 公开作品。
+- **改了什么**（2026-09-24）：新增 `docs/upwork-profile.md`（注：docs/ 在忽略目录，含个人信息不进 git）——Profile Title 三选一 / Overview 英文正文（首两行黄金位、约 1900 字符）/ Employment History 五条英文 / Skills 十个 / Portfolio 五条（仓库名经 GitHub API 核对：DayTradingAgent、QuantStrategistAgent、CC-Bridge、market_data_fetcher、CapabilityManagerAgent + AgentCortex）/ 费率市场带（Upwork 官方口径 AI agent developer $30-150/hr，起步建议留占位待用户拍板）/ 首单策略（Connects 经济学：免费月约 10 个、优先强匹配小单）。`TODO.md` T13 状态更新为「材料已备待注册」，剩余为用户执行项。
+
+### 变更（新增「外部 14 平台盘点评估」：接单平台 / 远程求职板分类评估，WWR 列低成本试点）
+
+- **为什么改**：用户 2026-09-24 贴入一篇盘点「14 个国外远程工作平台」的第三方文章，要求逐个评估是否值得尝试——文章把接单平台与远程求职板混为一类，且未提大陆用户最关键的两项成本（投标币、地域限制），结论需逐一核实后才可作为渠道决策依据。
+- **改了什么**（2026-09-24）：`docs/channel-strategy.md`（注：该文件在忽略目录，供本机使用）新增「外部 14 平台盘点评估」节——14 个平台分五档结论：值得投入（Upwork，已有决策待执行）／低成本试点（We Work Remotely，RSS 实测可用、当日快照 AI 类岗约 19%）／长期目标（Toptal，通过率与英语硬门槛）／暂缓观察（Fiverr、Remote OK、Remotive、Working Nomads）／不建议（Freelancer.com、Guru、FlexJobs、Remote.co、JustRemote、RemoteWoman、Authentic Jobs）；补记文章未提的两类成本（Upwork Connects / Freelancer bid 的投标成本；求职板 US-only 地域限制实测：Remotive 搜索样本中 Worldwide 约占三分之一）；另纠正文章一处表述（Toptal 平台侧不收 freelancer 佣金）。本次为评估记录，`scripts/job_brief.py` 当时未改动；WWR 接入由用户同日拍板，代码变更见下一条。
+
+### 变更（岗位简报管道接入 We Work Remotely：第十一通道，十一通道全绿）
+
+- **为什么改**：2026-09-24「外部 14 平台盘点评估」的结论中，We Work Remotely 是唯一列为低成本试点的求职板（免费 + RSS 可用、一手源、AI 类岗占约 19%），用户当日拍板接入巡查管道——为海外 / 全球远程正式岗这条线增加一个与 LinkedIn 互补的一手源（公司直发，非二手聚合）。
+- **改了什么**（2026-09-24）：① `scripts/job_brief.py`——新增 `fetch_wwr()`：官方 RSS（`weworkremotely.com/remote-jobs.rss`，免登录，RSS 内含 company / region / category / skills / 完整 JD，单请求完成无需详情页）；通道级预筛只留技术 / 产品 / 设计类 category（`WWR_KEEP_CATS`）与标题强词命中岗——全量含大量客服 / 销售岗且 category 字段有错标（实测销售岗被标 DevOps），预筛后 43/83；city 按 region 记「远程」或「远程·<限定>」（North America Only 等限制留线索，终审看 JD）；`main()` 通道列表加 WWR（第十一通道）；简报头部地理限制提示行扩为「LinkedIn / WWR」双通道；模块 docstring 同步。② `docs/channel-strategy.md`（注：该文件在忽略目录）评估节行动项更新为「已接入」。全量实跑验证：十一通道全绿（腾讯 266、字节 34、DeepSeek 31、Kimi 54、MiniMax 51、智谱 98、电鸭 25、CKHR 群 0、CKHR 公众号 7、LinkedIn 162、WWR 43），新简报 brief-20260924-1244.md；WWR 贡献 2 条标题强命中岗进推荐位（Databricks AI Engineer - FDE 98 分、Sticker Mule AI agent engineer 81 分）。
+
 ### 变更（岗位简报管道接入 LinkedIn：免登录 guest 端点通道，十通道全绿）
 
 - **为什么改**：用户 2026-09-19 确认 LinkedIn 入渠道组合（双线：被动靠 profile 建档、主动需岗位数据源），问能否自动拉取上面的远程岗——实测 jobs-guest guest 端点免登录可用（列表 + 详情均 200），无需账号零封号风险，遂接入为第十通道，补齐「海外 / 全球远程正式岗」这条此前空白的线。
