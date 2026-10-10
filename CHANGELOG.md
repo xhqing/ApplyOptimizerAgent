@@ -1,8 +1,8 @@
 # CHANGELOG
 
-本文件记录本项目（ApplyOptimizerAgent / Hopkins，原名 BidOptimizerAgent，2026-09-06 更名）每次文件增删改查的变更，写清「为什么改」和「改了什么」。版本号以项目根 `VERSION` 文件为唯一权威（当前 0.1.0）。
+本文件记录本项目（ApplyOptimizerAgent / Hopkins，原名 BidOptimizerAgent，2026-09-06 更名）每次文件增删改查的变更，写清「为什么改」和「改了什么」。版本号以项目根 `VERSION` 文件为唯一权威（当前 0.1.1）。
 
-## [Unreleased]
+## [0.1.1] - 2026-10-10
 
 ### 变更（备份范围修正：仅 gYf7xg 文案保留在飞书）
 
