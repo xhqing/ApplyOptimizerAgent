@@ -2,6 +2,13 @@
 
 本文件记录本项目（ApplyOptimizerAgent / Hopkins，原名 BidOptimizerAgent，2026-09-06 更名）每次文件增删改查的变更，写清「为什么改」和「改了什么」。版本号以项目根 `VERSION` 文件为唯一权威（当前 0.1.3）。
 
+## [Unreleased]
+
+### 变更（项目文档引用随全局权威源迁移对齐：`~/.claude/` → `~/.pi/agent/`）
+
+- **为什么改**：用户 2026-10-17 将全局权威源由 `~/.claude/` 迁至 `~/.pi/agent/`（真实文件：`CLAUDE.md` / `skills/` / `docs/` / `patch/`；`~/.claude/hooks/` 作为 Claude Code 侧工具强制保留原位、随镜像继续维护；CapabilityManagerAgent 镜像已同步并提交）。本项目 `CLAUDE.md` 中对全局规则 / 文档 / 能力的引用仍指向旧路径，需随迁移对齐（各 Agent 项目的此类引用无统一批量安排——CapabilityManagerAgent 的 T2 仅覆盖其自身项目文档）。
+- **改了什么**（2026-10-17）：`CLAUDE.md` 4 处引用更新——「通用工作规则」（第 30 行）、「通用工作纪律」（第 41 行）的全局规则文件引用改为 `~/.pi/agent/CLAUDE.md`；「你的工具 · 通用能力获取来源」（第 34 行）改为 `~/.pi/agent/`；「子项目清单」节细则引用（第 62 行）改为 `~/.pi/agent/docs/agents-registry.md`。CHANGELOG 历史条目中的旧路径属历史记录、不改写。按 2026-10-13 fix/feat 发版门禁，本次为文档类改动，不 bump、不发版。
+
 ## [0.1.3] - 2026-10-17
 
 ### 变更（规则对齐：子项目清单节改写为 2026-10-17 软链接归属新规表述）
