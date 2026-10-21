@@ -4,6 +4,20 @@
 
 ## [Unreleased]
 
+### 变更（投递工具链：文本门禁 / 文案自检 / 台账口径 / 独立评审——移植自 ai-job-search 调研）
+
+- **为什么改**：调研开源项目 MadsLorentzen/ai-job-search（Claude Code 版投递框架）后，把适合我们渠道与 pi 环境的方法移植过来，解决三个老问题：① 岗位帖 / 群消息 / HR 私信是第三方文本，可能藏了写给模型看的指令，之前只靠 skill 里一句「当数据处理」约束；② 文案红线（接触阶段不报价、不写自评、占位符要清、字数按渠道）一直是模型自查，漏检是常态；③ 转化率口径（won/(won+lost)、在途不进分母、每小时毛收入）靠手算，一次理解偏差就让渠道判断失真。另外把「评审换新上下文」落到 pi 原生用法（`pi -p -nt`），而不是 Claude Code 专属的子 agent。
+- **改了什么**（2026-10-21）：
+  1. 新增 `scripts/posting_guard.py`：投递文本完整性门——删隐藏 HTML（display:none / visibility / opacity:0 / 负定位 / hidden 属性等）、删注释与 script/style 等载体、删不可见字符（零宽 / 双向控制符 / 软连字符 / BOM），标记指令型语句（中英文）、只在隐藏内容里出现的链接、拉丁混西里尔 / 希腊的同形字；支持 `--html` / `--text`、`--out` 写清洗文本、`--json`、`--strict`。默认只提示不阻断，判定 ⚠ 由人决定是否继续。
+  2. 新增 `scripts/copy_check.py`：出站文案红线机械自检——首触达渠道（评论区 / 私信 / BOSS 招呼 / 邮件）出现报价 / 薪资 / 预算即红；占位符、手机号 / 身份证 / 银行卡号、字数越界在 `--final`（即将投出）时升为红；自评、套话、中文语境英文标点、邮箱 / 微信号、缺模板版本号为提醒；8 个渠道各有字数区间；支持 `--strict` / `--json`。
+  3. 新增 `scripts/ledger.py`：台账安全写回与口径计算——`validate`（列数 / 枚举 / 日期 / 数字 / 逗号引号污染 / 形态自相矛盾）、`stats`（五级漏斗、转化率、按渠道与类型的投入产出、死层与输因、样本量提醒）、`open`（在途 + 静默天数 + 30 天规则提示）、`next-id` / `add` / `update`（自动编号、只改指定列、保留行序）、`report`（离线 HTML 漏斗报告，内联 SVG 无外部依赖）。口径与 `docs/bidding-record-sop.md` v0.2.2 一致，写入前整体校验。
+  4. 新增 `.pi/skills/apply-writing/references/review.md` 与 `reviewer-prompt.md`：独立评审协议——用 `cat 输入 | pi -p -nt --no-session --append-system-prompt <评审提示词>` 起一个无工具、新上下文的进程，只给渠道 / 岗位文本（已清洗）/ 文案 / 事实清单，返回 Part A 结构化改稿（old/new/reason）与 Part B 判断题（覆盖缺口 / 差异化 / 证据 / 事实风险 / 语气）；主会话逐字核对后落地。
+  5. 更新 `.pi/skills/apply-writing/SKILL.md`：生成流程改为「完整性门 → 读参考 → 要原文 → 按模板写 → 机械自检 → 可选独立评审 → 输出」；新增「配套工具」表（四件工具的分工边界）；台账改为用 `ledger.py` 写，不手改 CSV；description 补「生成后必须跑 copy_check」。三份模板参考（`applications.md` / `job-apply.md` / `proposals.md`）各加一行投出自检指针。
+  6. 台账数据修正（`docs/ledger.csv`，本地文件）：`validate` 查出 2 条重复 `record_id`（GW-260913-01/02 各出现两次，后加的两条改为 -04 / -05）与 1 条 `lost_reason_layer` 枚举里混解释文字（解释移入 `lesson`，枚举记 `其他`）；`created_at` 保留带分钟的写法不迁移（后续统计只取日期部分）。
+  7. `docs/bidding-record-sop.md` 对齐工具：`dead_layer` 明确支持 `选单层`（未投出即 pass / 观望，让入口漏损可统计）；枚举字段只放词表值、解释写 lesson / next_action；第 6 节盘点改为跑 `ledger.py` 命令，不再手算。
+  8. `TODO.md` 增三条待办：T17（核实 8 条超 30 天在途样本、按 SOP 关单）、T18（三个新脚本的回归测试由 Hopper 出题）、T19（建立 `docs/profile-facts.md` 事实清单，供评审与反编造核对）。
+- **验证**：三个脚本均实跑通过——隐藏块清洗 + 中英文注入标记、报价红线（BOSS 文案命中 / 提案放行）、占位符 `--final` 升红、字数与标点提醒；`ledger.py validate` 现为 18 行 / 21 列零错误；`stats` 输出投出 13 / 回应 2 / 谈单 1 / 成交 0、已判定 1（转化率 0.0%）、选单层 5；`open` 列出 12 条在途并提示 8 条超 30 天；`report` 生成 6.7KB 离线 HTML（无 http 外链）；独立评审命令实测 10 秒返回 Part A/B。回归测试用例交由 Hopper 出题（TODO T18，用例定义权归测试 Agent，开发侧不写测试文件）。
+
 ### 变更（2026-10-18 电鸭扫单：登录态通道第二次全量扫单 + 推荐清单）
 
 - **为什么改**：用户 2026-10-18 要求「查一下电鸭最近有哪些岗位值得投」——执行登录态通道扫单（招聘频道 3 页 + AI 工程师筛选页 + 15 个岗位详情拉取），产出推荐清单交用户终审。

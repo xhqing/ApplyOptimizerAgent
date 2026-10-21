@@ -17,11 +17,23 @@
   **背景**：T1 的数据采集剩余部分。记录体系已就位（台账 `docs/ledger.csv` + 五级漏斗字段映射 + 期望值口径，见 `docs/bidding-record-sop.md` v0.2.2 第 6 节）；Kit 侧 `ExecutiveAssistantAgent/docs/task-pool-bidding-sop.md` 里的「保守中标率 3%」「每天投 15～20 标」等数字是无实测背书的假设（其平台推荐部分已被用户实测推翻，电鸭为新主渠道），需用本项目真实数据重新标定。
   **要做什么**：① 从台账第一条 `sent` 样本起算，满两周（14 个自然日）后按 SOP 第 6 节口径算五级漏斗各层转化率与整体转化率（won / (won+lost)）；② 用实测数字回写 Kit 侧 SOP 的假设数字（替换或标注「待实测」出处，与 Kit 会话确认后落地）；③ 基线数字同步进本项目模板库迭代日志，作为后续 A/B 测试的对照基线；④ 渠道复盘另按期望值口径横向对比（每投期望回报、每小时期望毛收入；一次性收入与持续性月薪折算同一时间窗），大厂渠道「低频高值」定位以此检验；存量在途单的 `hours_spent` 由用户补估一次（15 分钟档）。
 
+- [ ] **T17** 核实 8 条超 30 天在途样本的真实状态，能确认已无推进的按 SOP 转 lost（记录：2026-10-21 12:38）
+  **背景**：新工具 `scripts/ledger.py open` 实测发现 12 条在途样本里有 8 条自最后活动起已超 30 天（DY-260905-01/02/03、GW-260913-01～05），按 SOP 通用关闭规则应转 lost；但它们可能只是「有后续但没记台账」（如 DY-260905-02 计划 09-10 有腾讯会议初面），不能机械批量关单——在途不计入分母，拖着会让转化率分母偏小、渠道判断失真。
+  **要做什么**：① 逐条向用户确认是否还有推进；② 已死的用 `python3 scripts/ledger.py update --id <ID> --set outcome=lost --set close_date=today --set dead_layer=<层> --set lost_reason_layer=<归因>` 关单；③ 有进展的补记 `connected_at` / `engaged_at` / 新 `next_action`；④ 关单后重跑 `ledger.py stats` 记基线。
+
+- [ ] **T19** 建立本机事实清单 `docs/profile-facts.md`：评审与反编造核对的唯一事实源（记录：2026-10-21 12:38）
+  **背景**：独立评审（`.pi/skills/apply-writing/references/review.md`）要求评审者只能引用「事实清单」里的事实，否则新增数字 / 雇主名 / 项目名一律退回「待确认」。目前本机没有这份清单，事实散在三份简历 PDF（`backup/feishu/`）、申请理由文档与台账里，评审只能按文案自身核对，反编造能力打折。
+  **要做什么**：① 从三份简历 PDF + 现有 `docs/apply-reason-*.md` 提取教育、经历、技能、可核验证据（仓库 / 演示 / 数字），写成 `docs/profile-facts.md`（docs/ 已 gitignore，真实信息不外泄；不要写联系方式和薪资底线）；② 标注「待用户核对」项；③ 之后 `/apply-writing` 生成前先读它，评审输入里带上它；④ 简历改版时同步更新。
+
 ## 🟡 黄色紧急度
 
 - [ ] **T16** 电鸭登录态抓取通道正式化：把 `tmp/fetch-elduck2.sh` + `tmp/parse-elduck.py` 升级为 `scripts/` 正式工具，并并入扫单流程（记录：2026-10-09 22:05）
   **背景**：2026-10-09 扫单时打通登录态抓取（详见 `docs/eleduck-rules.md` §4.5）——详情页全文 + 评论区 + 招聘频道列表均可用，比现行 `job_brief.py` 的电鸭 RSS 通道（200 字摘要）信息量大得多；招聘频道另有「人才库职位（tposts）申请免电量」等结构可用。当前工具还是 tmp 临时脚本（手动复制 Chrome profile + 逐个 URL 抓取），未固化、有丢失风险。
   **正式化内容建议**：① 抓取 / 解析脚本进 `scripts/`；② profile 快照准备（复制 Cookies + Local State 到临时目录）做成脚本第一步（macOS Keychain 由 Chrome 自处理，无需人工）；③ 与 `job_brief.py` 的关系二选一：集成（RSS 发现新帖 → 登录态拉详情）或独立扫单命令（更轻、按需跑）；④ 保持节流与手动触发（登录态抓取频率别太高，避免账号风险）。
+
+- [ ] **T18** 三个新脚本的回归测试交由 Hopper 出题（记录：2026-10-21 12:38）
+  **背景**：`scripts/posting_guard.py` / `copy_check.py` / `ledger.py` 已按机械行为手工验证（隐藏块清洗、注入标记、报价红线、统计口径、台账写回均实跑通过），但用例定义权归 TestEngineerAgent（Hopper）——开发 agent 写测试文件被工具硬拦截，不绕行。
+  **要做什么**：委派 Hopper 为三个脚本补 pytest 回归用例：① guard 隐藏块 / 零宽 / 指令语句 / 隐藏链接；② copy_check 首触达报价、提案放行报价、`--final` 占位符、版本号、字数、英文标点；③ ledger 转化率口径（won/(won+lost)，在途与选单层不进分母）、枚举校验、逗号挤列、update 保序、add 自动编号。用例进 `tests/`，跑法 `python3 -m pytest tests -q`。
 
 ## 🟢 绿色紧急度
 

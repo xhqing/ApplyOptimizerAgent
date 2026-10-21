@@ -51,6 +51,8 @@ github.com/xhqing。方便的话我把简历发您，或约 X 分钟电话细聊
 
 ### 红线
 
+> 投出前先跑机械自检：`python3 scripts/copy_check.py --in <文案> --channel boss --require-version --final`（简历用 `--channel resume`）。报价、占位符、自评、套话、标点、字数由脚本判定；JD 细节复述与证据密度仍需人审或独立评审（`references/review.md`）。
+
 - ❌ 复述不出 JD 细节 = 不发（与接单侧同规则）。JD 只有职位名没有业务描述的岗，先 pass 或向用户要补充信息。
 - ❌ 首条招呼不谈薪资。期望薪资是面试后期动作；HR 首聊就问的，用第三节推迟话术。
 - ❌ 不写「精通 / 熟练掌握」自评清单，只写做过什么 + 证据在哪。
