@@ -17,7 +17,7 @@
 
 [简体中文](README_cn.md)
 
-ApplyOptimizerAgent owns **application conversion optimization** for the work-intake squad — the whole upstream funnel, across channels (remote-work communities like Eleduck, plus job platforms like BOSS直聘; task-pool bidding and job-platform applications run as parallel intake strategies under one funnel): opportunity hunting & screening, proposal & résumé engineering, funnel tracking (lead → application → reply → talk / interview → win / offer), conversion analytics, and pricing & salary-strategy testing. Passing on a bad opportunity before any application work starts is itself conversion optimization — **not applying to junk is the cheapest win-rate boost**. Justin locks the contracts downstream; Kit, the GM's assistant, covers general affairs across the whole team.
+ApplyOptimizerAgent owns **application conversion optimization** for the work-intake squad — the whole upstream funnel, across three channels only (**Eleduck**, **Upwork** and **We Work Remotely**): full-time roles are **remote-only** and scored purely on skill match; freelance / part-time work takes **any location** and favours **simple, high-throughput tasks** inside the skill range, because non-full-time work is rarely paid by the hour. The job covers opportunity hunting & screening, proposal & résumé engineering, funnel tracking (lead → application → reply → talk / interview → win / offer), conversion analytics, and pricing & salary-strategy testing. Passing on a bad opportunity before any application work starts is itself conversion optimization — **not applying to junk is the cheapest win-rate boost**. Justin locks the contracts downstream; Kit, the GM's assistant, covers general affairs across the whole team.
 
 ---
 

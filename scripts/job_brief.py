@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """每日岗位简报管道（Hopkins · ApplyOptimizerAgent）
 
+2026-10-22 起停用：项目目标收敛为三平台（电鸭 / Upwork / WWR），全职只找远程、非全职优先简单高产出；
+抓取与打分统一由 scripts/job_fetch.py 负责。本脚本保留作 11 通道与旧地域口径的历史参考，不再进入日常流程。
+
 多通道抓取 → 关键词/位置硬筛 → fit_score 预打分 → 产出 docs/briefs/ 简报。
 预筛分只是机器预判（口径见下），是否投递由人终审，选中后按 bidding-record-sop 记台账。
 
