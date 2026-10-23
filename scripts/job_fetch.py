@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""三平台岗位抓取与投递匹配（电鸭 / Upwork / WWR）。
+"""四平台岗位抓取与投递匹配（电鸭 / LinkedIn / Upwork / WWR）。
 
-2026-10-22 项目目标调整后的主管道：
+2026-10-22 项目目标调整后的主管道（2026-10-23 用户要求恢复 LinkedIn，渠道由三个扩为四个）：
   * 全职：只找远程岗，只看技能匹配度；
   * 非全职（兼职 / 零活 / 项目制 / 合同）：不限地域，优先「技能范围内偏简单、单位时间产出高」的活。
 
@@ -13,6 +13,10 @@
   WWR     三个 RSS：全部（remote-jobs.rss）+ programming + devops；正文、类型、地区全在 feed 里。
   Upwork  Jina Reader 抓公开搜索页（官方 RSS 已 410；直连 403 Cloudflare）
           → X-With-Links-Summary + X-Timeout 拿「描述块 + 职位链接」，按顺序配对
+  LinkedIn 免登录 jobs-guest 端点（无账号 = 无封号风险）：列表 f_WT=2（官方 workplace-type=remote
+          过滤）+ start=0/25 两页，地点桶 Remote / China；仅对标题命中目标角色的新岗拉
+          jobPosting/{id} 详情（JD / 雇佣类型 / 级别 / 申请人数），上限 --li-details。
+          列表页 location 是 LinkedIn 的招聘地点（不是公司总部），境外具体地点记地域受限。
 
 产出：
   docs/jobs/jobs-<时间戳>.jsonl     全量标准化岗位（含 JD、评分、命中原因）
@@ -22,14 +26,16 @@
 调权重时不必重抓：`--from-jsonl docs/jobs/jobs-xxx.jsonl` 直接离线重算。
 
 用法：
-  python3 scripts/job_fetch.py                       # 三平台默认查询
+  python3 scripts/job_fetch.py                       # 四平台默认查询
   python3 scripts/job_fetch.py --platforms wwr       # 只跑一个平台
   python3 scripts/job_fetch.py --details 0           # 不抓电鸭详情（快）
+  python3 scripts/job_fetch.py --li-details 0        # 不抓 LinkedIn 详情（快）
   python3 scripts/job_fetch.py --queries "python automation,llm,quant"
 
 边界：
   * Upwork 走第三方 Reader，公开页偶发 Cloudflare 403，脚本带重试；仍失败会记入 failures。
   * 电鸭详情依赖本机 Chrome + 已登录 profile；没有就只用 RSS 200 字摘要（会标注 detail=rss_only）。
+  * LinkedIn guest 端点是匿名公开页，按 IP 级限流，脚本每次请求间隔 1 秒、失败按页跳过。
   * 只做个人求职用途，控制频率；不做批量转售 / 再分发。
 """
 
@@ -67,6 +73,17 @@ WWR_FEEDS = [
     ("https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss", "devops"),
 ]
 UPWORK_SEARCH = "https://www.upwork.com/nx/search/jobs/"
+
+# LinkedIn 免登录 guest 端点（2026-09-19 打通，2026-10-23 恢复进主管道）
+LI_SEARCH = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
+LI_DETAIL = "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{id}"
+LI_QUERIES = [
+    "LLM", "AI Agent", "machine learning engineer", "quant developer",
+    "python automation", "大模型",
+]
+LI_LOCS = ("Remote", "China")  # 两个地点桶：全球远程 + 国内远程
+LI_STARTS = (0, 25)             # guest 每页约 10 条（登录版 25），翻两页
+LI_MAX_DETAIL = 40              # 详情上限：每岗一次请求，只拉角色命中的岗（有缓存，重跑不重拉）
 
 DEFAULT_QUERIES = [
     # 全职远程方向（Upwork 上也会出现，但主要是非全职）
@@ -495,14 +512,196 @@ def upwork_items(queries: list[str], pages: int = 1) -> tuple[list[dict], list[s
     return jobs, failures
 
 
+# ---------------------------------------------------------------- LinkedIn
+
+LI_EMPLOYMENT = {
+    "full-time": "full-time", "part-time": "part-time",
+    "contract": "part-time", "temporary": "part-time",
+    "internship": "unknown", "volunteer": "unknown", "other": "unknown",
+}
+LI_DETAIL_HINTS = [w.lower() for w in (
+    "ai engineer", "llm", "agent", "machine learning", "ml engineer", "python",
+    "data engineer", "data scientist", "quant", "automation", "backend", "full stack",
+    "算法", "大模型", "智能体", "量化", "自动化", "数据",
+)]
+LI_HOME_MARKS = ("china", "hong kong", "taiwan", "macau")
+LI_CACHE = OUT_DIR / "li-detail.json"  # 详情缓存（ID → JD / 雇佣类型），跨 run 复用省请求
+
+
+def load_li_cache() -> dict:
+    if LI_CACHE.exists():
+        try:
+            return json.loads(LI_CACHE.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001  缓存坏了不影响抓取，重新攒
+            return {}
+    return {}
+
+
+def save_li_cache(cache: dict) -> None:
+    if len(cache) > 3000:  # 只留最近 3000 条，防无限增长
+        for k in list(cache)[:-3000]:
+            cache.pop(k, None)
+    LI_CACHE.parent.mkdir(parents=True, exist_ok=True)
+    LI_CACHE.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
+
+
+def li_priority(job: dict) -> tuple:
+    """详情抓取优先级：境内 / 近岸岗 → 全球远程岗 → 境外具体地点；同级按标题强词命中数降序。
+    详情每岗一次请求且有上限，先把最值得看的拿到 JD。"""
+    loc = (job.get("location") or "").lower()
+    if any(k in loc for k in LI_HOME_MARKS):
+        geo = 0
+    elif any(k in loc for k in ("remote", "anywhere", "worldwide")):
+        geo = 1
+    else:
+        geo = 2
+    strong = len(hits(job["title"].lower(), [w.lower() for w in STRONG]))
+    return (geo, -strong)
+
+
+def li_get(url: str, timeout: int = 30) -> str:
+    """guest 接口免登录但按 IP 限流：每次请求前留 1 秒间隔（含详情页）。"""
+    time.sleep(1.0)
+    return http_get(url, timeout=timeout).decode("utf-8", "ignore")
+
+
+def li_clean(raw: str) -> str:
+    """去标签 + 反复反转义（LinkedIn 偶发双重编码 &amp;amp;，解到稳定为止）。"""
+    text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", raw or ""))
+    for _ in range(3):
+        prev, text = text, html_lib.unescape(text)
+        if text == prev:
+            break
+    return text.strip()
+
+
+def linkedin_items(max_detail: int = LI_MAX_DETAIL,
+                   queries: list[str] | None = None,
+                   locs: tuple[str, ...] = LI_LOCS) -> tuple[list[dict], list[str]]:
+    """LinkedIn 岗位搜索（免登录 guest 端点）。返回 (岗位列表, 失败清单)。
+
+    列表：f_WT=2 是 LinkedIn 官方 workplace-type=remote 过滤，返回岗位全部为远程工作类型；
+    地点桶 Remote 拿全球远程岗、China 拿国内远程岗（实测均有结果）。
+    详情：只对角色命中（卡片级预筛后）的岗拉，上限 max_detail（只算本次真正发出的新请求；
+    命中本地详情缓存的不重拉，缓存跨 run 留存——否则「先列表、后详情」的两阶段回填
+    会被 seen.json 永久卡住）。详情解析 JD 正文 + 雇佣类型 / 级别 / 行业 / 申请人数，
+    雇佣类型写回 job["employment"]，供全职 / 非全职两套打分口径分流。
+    限流：单页失败跳过并计入 failures；全部页都失败才抛异常（通道级失败）。
+    无账号参与 = 无封号风险。
+    """
+    kw_list = queries or LI_QUERIES
+    cards: dict[str, dict] = {}
+    failures: list[str] = []
+    failed = 0
+    for kw in kw_list:
+        for loc in locs:
+            for start in LI_STARTS:
+                url = (f"{LI_SEARCH}?keywords={urllib.parse.quote(kw)}"
+                       f"&location={urllib.parse.quote(loc)}&f_WT=2&start={start}")
+                try:
+                    page = li_get(url)
+                except Exception as exc:  # noqa: BLE001
+                    failed += 1
+                    failures.append(f"LinkedIn [{kw} / {loc} p{start}]: {type(exc).__name__}")
+                    continue
+                for seg in page.split("<li>")[1:]:
+                    if "base-search-card" not in seg:
+                        continue
+                    urn = re.search(r'data-entity-urn="urn:li:jobPosting:(\d+)"', seg)
+                    title = re.search(r'base-search-card__title">(.*?)</h3>', seg, re.S)
+                    if not (urn and title):
+                        continue
+                    jid = urn.group(1)
+                    if jid in cards:
+                        continue
+                    company = re.search(r'base-search-card__subtitle">(.*?)</h4>', seg, re.S)
+                    city = re.search(r'job-search-card__location">(.*?)</span>', seg, re.S)
+                    posted = re.search(r'job-search-card__listdate" datetime="([^"]+)"', seg)
+                    cards[jid] = {
+                        "platform": "LinkedIn",
+                        "id": jid,
+                        "title": li_clean(title.group(1)),
+                        "company": li_clean(company.group(1)) if company else "",
+                        "url": f"https://www.linkedin.com/jobs/view/{jid}",
+                        "posted": posted.group(1) if posted else "",
+                        "expires": "",
+                        "employment": "unknown",
+                        "remote": True,
+                        "location": li_clean(city.group(1)) if city else "",
+                        "jd": "",
+                        "tags": [],
+                        "detail": "card",
+                        "source_query": kw,
+                    }
+    if cards and failed >= len(kw_list) * len(locs) * len(LI_STARTS):
+        raise RuntimeError(f"guest 接口全部页失败（{failed} 页，可能被限流或页面改版）")
+
+    # 卡片级预筛：角色不对的直接丢掉（同 WWR 按类目预筛的思路）——几百张非目标岗卡片
+    # 会把「类型待确认」区洗成噪声，而它们本来也进不了推荐位。
+    kept = []
+    for job in cards.values():
+        if classify_role(job) == "other":
+            continue
+        kept.append(job)
+    if len(kept) < len(cards):
+        print(f"[info] LinkedIn 卡片级预筛：按角色排掉 {len(cards) - len(kept)} 条",
+              file=sys.stderr)
+    kept.sort(key=li_priority)
+
+    cache = load_li_cache()
+    fetched = cached = 0
+    for job in kept:
+        jid = job["id"]
+        if jid in cache:
+            job.update(cache[jid])
+            cached += 1
+            continue
+        if fetched >= max_detail:
+            continue
+        try:
+            detail_html = li_get(LI_DETAIL.format(id=jid))
+        except Exception:  # noqa: BLE001
+            failures.append(f"LinkedIn 详情 [{job['title'][:40]}]: 请求失败")
+            continue
+        dm = re.search(r"show-more-less-html__markup[^>]*>(.*?)</div>", detail_html, re.S)
+        criteria = {
+            li_clean(k).lower(): li_clean(v)
+            for k, v in re.findall(
+                r'job-criteria-subheader">(.*?)</h3>\s*<span[^>]*>(.*?)</span>',
+                detail_html, re.S)
+        }
+        jd = li_clean(dm.group(1)) if dm else ""
+        meta = [f"{k}: {v}" for k, v in criteria.items() if v]
+        pm = re.search(r"posted-time-ago__text[^>]*>(.*?)</", detail_html, re.S)
+        am = re.search(r"num-applicants__caption[^>]*>(.*?)</", detail_html, re.S)
+        if pm:
+            meta.append("发布：" + li_clean(pm.group(1)))
+        if am:
+            meta.append(li_clean(am.group(1)))
+        job["jd"] = (jd + "\n" + " | ".join(meta))[:4000]
+        job["tags"] = [v for k, v in criteria.items() if k in ("industries", "seniority level")]
+        job["employment"] = LI_EMPLOYMENT.get(criteria.get("employment type", "").lower(), "unknown")
+        job["detail"] = "full" if jd else "card"
+        if jd:  # 只缓存真正拿到 JD 的，空结果下次重试
+            cache[jid] = {k: job[k] for k in ("jd", "employment", "tags", "detail")}
+        fetched += 1
+    if fetched or cached:
+        save_li_cache(cache)
+    if fetched == 0 and cached == 0:
+        failures.append("LinkedIn: 本次未拉到任何详情（列表卡片仍可用，JD 为空会拉低匹配分）")
+    return kept, failures
+
+
 # ---------------------------------------------------------------- 分类 / 打分
 
 ROLE_PATTERNS = {
     "ai": ["ai engineer", "ai developer", "llm", "agent", "genai", "generative ai",
            "prompt", "ai application", "applied ai", "large language model",
+           "artificial intelligence", "ai/ml", "ai specialist", "ai platform",
            "人工智能", "大模型", "智能体"],
     "ml": ["machine learning", "ml engineer", "data scientist", "applied scientist",
-           "research engineer", "deep learning", "机器学习", "算法工程师", "算法"],
+           "research engineer", "deep learning", "algorithm engineer", "algorithms engineer",
+           "机器学习", "算法工程师", "算法"],
     "data": ["data engineer", "analytics engineer", "data analyst", "bi ", "etl",
              "data warehouse", "data platform", "数据工程", "数据分析", "数据开发"],
     "quant": ["quant", "quantitative", "trading", "backtest", "market data", "portfolio",
@@ -538,10 +737,26 @@ RESTRICTED_JD = [
 ]
 
 
+def non_tech_hit(title_low: str) -> list[str]:
+    """标题里的非技术词命中。ASCII 词按词边界匹配——否则短词会误伤（“seo” 会命中 “Seoul”，
+    把 AI 工程师岗当成市场岗排掉）；中文词没有词边界可用，仍按子串匹配。"""
+    out = []
+    for w in NON_TECH_TITLE:
+        w = w.strip()
+        if not w:
+            continue
+        if w.isascii():
+            if re.search(rf"\b{re.escape(w)}\b", title_low):
+                out.append(w)
+        elif w in title_low:
+            out.append(w)
+    return out
+
+
 def classify_role(job: dict) -> str:
     title = job["title"].lower()
     text = f"{title} {job.get('jd','')[:2500]}".lower()
-    if any(w in title for w in NON_TECH_TITLE):
+    if non_tech_hit(title):
         return "other"
     if "product manager" in title or "product owner" in title:
         return "pm" if any(k in title for k in ("ai", "agent", "llm", "technical")) else "other"
@@ -606,6 +821,17 @@ def region_status(job: dict) -> tuple[str, str]:
         return "global", "Upwork 远程（全球接单，JD 另有身份要求时以 JD 为准）"
     if job.get("platform") == "电鸭":
         return "global", "电鸭远程（国内 / 亚洲为主，投前确认办公地与结算）"
+    if job.get("platform") == "LinkedIn":
+        # 列表页 location 是 LinkedIn 的招聘地点（不是公司总部）：境内 / 近岸算可行，
+        # 境外具体地点算地域受限（JD 里另有明确时区 / 身份限制时上面已优先判过）。
+        loc = region.lower()
+        if any(k in loc for k in ("china", "hong kong", "taiwan", "macau")):
+            return "global", "LinkedIn 招聘地点：" + region + "（境内 / 近岸）"
+        if any(k in loc for k in ("remote", "anywhere", "worldwide")):
+            return "global", region
+        if loc:
+            return "restricted", "LinkedIn 招聘地点：" + region + "（需确认能否异地雇佣）"
+        return "unknown", ""
 
     if region:
         r = region.lower()
@@ -623,6 +849,8 @@ def classify_employment(job: dict) -> str:
         return "part-time"
     if job["platform"] == "WWR":
         return job.get("employment") or "unknown"
+    if job["platform"] == "LinkedIn" and job.get("employment") in ("full-time", "part-time"):
+        return job["employment"]  # 详情页的 Employment type 字段最权威，拿到就用
     if job.get("closed") or job.get("hidden") or job.get("deleted"):
         return "closed"
     title = job["title"].lower()
@@ -643,7 +871,7 @@ def classify_employment(job: dict) -> str:
 
 
 def remote_ok(job: dict) -> bool:
-    if job["platform"] in ("WWR", "Upwork"):
+    if job["platform"] in ("WWR", "Upwork", "LinkedIn"):
         return True
     text = f"{job['title']} {job['jd']}"
     if "远程" in text or "remote" in text.lower():
@@ -794,13 +1022,15 @@ def key_of(job: dict) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="三平台岗位抓取与投递匹配（电鸭 / Upwork / WWR）")
-    parser.add_argument("--platforms", default="eleduck,upwork,wwr", help="逗号分隔：eleduck,upwork,wwr")
+    parser = argparse.ArgumentParser(description="四平台岗位抓取与投递匹配（电鸭 / LinkedIn / Upwork / WWR）")
+    parser.add_argument("--platforms", default="eleduck,linkedin,upwork,wwr",
+                        help="逗号分隔：eleduck,linkedin,upwork,wwr")
     parser.add_argument("--queries", default="", help="Upwork 搜索词，逗号分隔（默认按画像内置）")
     parser.add_argument("--pages", type=int, default=1, help="Upwork 每个查询翻几页")
     parser.add_argument("--details", type=int, default=6, help="电鸭最多抓几条详情（0=只用列表摘要）")
     parser.add_argument("--eleduck-pages", type=int, default=1, help="电鸭每个列表页翻几页（精选/简历匹配/社区招聘）")
     parser.add_argument("--eleduck-days", type=int, default=45, help="电鸭只看最近 N 天（精选职位保留更久）")
+    parser.add_argument("--li-details", type=int, default=LI_MAX_DETAIL, help="LinkedIn 最多抓几条详情（0=只用列表卡片）")
     parser.add_argument("--top", type=int, default=12, help="每类推荐条数")
     parser.add_argument("--no-write", action="store_true", help="只打印统计，不写文件")
     parser.add_argument("--from-jsonl", default="", help="跳过抓取，用已有 JSONL 重算（调打分权重时用）")
@@ -838,6 +1068,16 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[ok] Upwork: {len(up)} 条（失败 {len(up_fail)}）", file=sys.stderr)
         jobs += up
 
+    if not args.from_jsonl and "linkedin" in platforms:
+        try:
+            li, li_fail = linkedin_items(args.li_details)
+            failures += li_fail
+            print(f"[ok] LinkedIn: {len(li)} 条候选（详情命中 {sum(1 for j in li if j['detail'] == 'full')} 条，"
+                  f"失败 {len(li_fail)}）", file=sys.stderr)
+            jobs += li
+        except Exception as exc:  # noqa: BLE001
+            failures.append(f"LinkedIn: {type(exc).__name__} {exc}")
+
     # 去重 + 过期过滤
     seen = load_seen()
     now = datetime.now(timezone.utc)
@@ -867,6 +1107,7 @@ def main(argv: list[str] | None = None) -> int:
     part = [j for j in part_all if j["eligible"]]
     part_other = [j for j in part_all if not j["eligible"]]
     unknown = [j for j in scored if j["employment"] not in ("full-time", "part-time")]
+    unknown.sort(key=lambda x: -x["score"])
     for bucket in (full, full_restricted, full_unknown, part):
         bucket.sort(key=lambda x: -x["score"])
 
@@ -890,6 +1131,7 @@ def main(argv: list[str] | None = None) -> int:
         "",
         "> 口径（2026-10-22）：全职只看远程 + 技能匹配；非全职不限地域，优先技能范围内偏简单、单位时间产出高的活。",
         f"> 抓取：电鸭 {sum(1 for j in scored if j['platform']=='电鸭')} / "
+        f"LinkedIn {sum(1 for j in scored if j['platform']=='LinkedIn')} / "
         f"Upwork {sum(1 for j in scored if j['platform']=='Upwork')} / "
         f"WWR {sum(1 for j in scored if j['platform']=='WWR')}；"
         f"失败 {len(failures)}。",
@@ -904,8 +1146,10 @@ def main(argv: list[str] | None = None) -> int:
               "| 分 | 平台 | 角色 | 岗位 | 地点 / 预算 | 命中 | 链接 |", "|---|---|---|---|---|---|---|"]
     lines += [row(j) for j in part[: args.top]] or ["| — | — | — | 本次无 | — | — | — |"]
     if unknown:
-        lines += ["", f"## 类型待确认（{len(unknown)} 条，需看 JD 判断）", ""]
-        lines += [row(j) for j in unknown[:5]]
+        lines += ["", f"## 类型待确认（{len(unknown)} 条，需看 JD 判断）", "",
+                  "> 主要来自 LinkedIn 只拿到列表卡片、未拉详情的岗（雇佣类型在详情页，列表卡片没有）。"
+                  "调高 `--li-details` 可回填；其余渠道的待定项是标题没写清全职 / 兼职的岗。", ""]
+        lines += [row(j) for j in unknown[:8]]
     if full_unknown:
         lines += ["", f"## 全职 · 远程但工作许可待确认（{len(full_unknown)} 条）", ""]
         lines += [row(j) for j in full_unknown[:8]]
@@ -921,7 +1165,8 @@ def main(argv: list[str] | None = None) -> int:
     if failures:
         lines += ["", "## 抓取失败 / 降级", ""] + [f"- {f}" for f in failures]
     lines += ["", "> Upwork 标题与描述来自公开搜索页；电鸭 detail=rss_only 表示只有 200 字摘要，"
-                  "投递前需登录看详情。", ""]
+                  "投递前需登录看详情。LinkedIn 走免登录 guest 端点：地点栏是它的招聘地点"
+                  "（境外具体地点已归入「地域受限」，投前确认工作许可 / 时区）。", ""]
 
     brief = OUT_DIR / f"brief-{ts}.md"
     if not args.no_write:

@@ -4,6 +4,19 @@
 
 ## [Unreleased]
 
+### 新增（恢复 LinkedIn 渠道：主动线接回主管道）
+
+- **为什么改**：用户 2026-10-23 要求**恢复 LinkedIn**。2026-10-22 渠道收敛到三平台后，“海外 / 全球远程正式岗”这条线只剩 WWR 支撑——WWR 是聚合式招聘板、岗位池有限且以英语母语市场中小公司为主，覆盖面明显变薄。LinkedIn 当初（2026-09-19）入组合就是为了补这块空白（全球远程正式岗一手来源 + 猎头主动接触），现按用户要求恢复：渠道回到四个（电鸭 / LinkedIn / Upwork / WWR）。
+- **改了什么**（2026-10-23）：
+  1. `scripts/job_fetch.py`：新增 LinkedIn 抓取（`linkedin_items()`）作为第四个数据源，已合入主流程（`--platforms` 默认值改为 `eleduck,linkedin,upwork,wwr`，新增 `--li-details`）。取数走免登录 guest 端点：列表 `f_WT=2` 官方远程过滤 + 地点桶 `Remote` / `China` + `start=0/25` 两页；详情只对角色命中的岗拉（默认上限 40 条 / run，按「境内 → 全球远程 → 境外」优先），解析 JD / 雇佣类型 / 级别 / 行业 / 申请人数，与现有全职 / 非全职两套口径分流。
+  2. `scripts/job_fetch.py`：新增详情缓存 `docs/jobs/li-detail.json`（ID → JD / 雇佣类型，跨 run 复用）——否则「先列表、后详情」的两阶段回填会被 `seen.json` 的已见标记永久卡住，也避免每跑一次就重拉同一批详情。
+  3. `scripts/job_fetch.py`：LinkedIn 卡片级预筛（非目标角色直接丢，同 WWR 按类目预筛的思路），避免几百张无关卡片把「类型待确认」区洗成噪声；`region_status` 增 LinkedIn 分支（列表地点是招聘地点、不是公司总部：含 China / HK / TW / MO 记可行、`Remote` / `Anywhere` 记全球、境外具体地点记地域受限）；`classify_employment` 优先用详情页的 Employment type 字段；简报头部新增 LinkedIn 计数与地域口径注释，待定区改为按分数排序并注明来源。
+  4. `scripts/job_fetch.py`：**两个分类缺陷修复**（非 LinkedIn 专属，四平台均受益）——① `classify_role` 补 `algorithm engineer` / `artificial intelligence` / `ai/ml` / `ai specialist` / `ai platform` 等英文写法，此前“Artificial Intelligence Engineer”类岗位被归入 other 而排不进推荐位；② 非技术词匹配改为 ASCII 词按 **词边界**、中文词按子串——“seo” 此前会命中 “**Seo**ul” 把 AI 工程师岗当市场岗排掉。
+  5. `CLAUDE.md`（与 `AGENTS.md` 同一文件）/ `README_cn.md` / `README.md`：渠道表述由“三个渠道”改为“四个渠道（电鸭 / LinkedIn / Upwork / WWR）”，中英双语同步；工具清单补 LinkedIn 取数方式。
+  6. `docs/channel-strategy.md`（本机、gitignore）：顶部新增「2026-10-23 现行口径（四个渠道）」节——恢复原因、双线落地状态、LinkedIn 接入要点（含 `f_JT` 参数实测无效、地理判断口径、成本控制）；2026-10-22 节降为历史并加一句范围声明。
+  7. `TODO.md` / `TODO-archive.md`：新增 T22（LinkedIn 被动线建档，用户执行；按「永不复用编号」规则另起新条）；归档区 T14 改标 `✅已更新`并指向 T22（原正文一字不动）。
+- **验证（2026-10-23 实跑）**：四平台全量跑通，总耗时 8m40s，失败 3（Upwork 1 / LinkedIn 2）——电鸭 26 条、WWR 128 条、Upwork 122 条、LinkedIn 182 条（卡片级预筛排掉 23 条，详情命中 52 条）；简报产出全职远程 61 条（待确认 6、地域受限 14）、非全职 76 条。境内远程岗正常浮出（上海 AI 算法工程师、合肥 ML 工程师等），全球远程岗（Man Group 量化开发、ShopBack ML、Meetsocial AI Agent）进推荐位；`ruff check` 零告警。
+
 ### 变更（镜像仓库结构迁移跟进：CapabilityManagerAgent 镜像目录 `claude/` → `pi/agent/`）
 
 - **为什么改**：用户 2026-10-22 决定把 CapabilityManagerAgent 的开源镜像结构对齐 pi-harness——原 `claude/` 目录整体迁入 `pi/agent/`（与全局 `~/.pi/agent/` 路径一一对应），CC 遗留的 `hooks/` 不迁移、`claude/` 随后删除；全局 `capability-sync.md`、全局 CLAUDE.md 与注册表均已更新为新布局表述。本项目 `CLAUDE.md` 中「CapabilityManagerAgent 的 `claude/` 开源镜像」表述随之过时。
