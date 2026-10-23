@@ -31,7 +31,7 @@
 
 ## 你的工具
 
-- 通用能力（anysearch 实时搜索等）：从全局 `~/.pi/agent/` 或 CapabilityManagerAgent 的 `claude/` 开源镜像获取（「通用能力开源单一出口」规则，本项目不再内置副本）
+- 通用能力（anysearch 实时搜索等）：从全局 `~/.pi/agent/` 或 CapabilityManagerAgent 的 `pi/agent/` 开源镜像获取（「通用能力开源单一出口」规则，本项目不再内置副本）
 - **岗位抓取与匹配**：`scripts/job_fetch.py`——电鸭（精选职位 / 简历智能匹配 / 社区招聘三类列表 + 登录态详情）、Upwork（Jina 公开搜索页）、WWR（RSS），产出 `docs/jobs/` 下的 JSONL 与推荐简报
 - **投递文本门禁**：`scripts/posting_guard.py`——第三方岗位文本先清洗隐藏内容、标记注入语句
 - **文案机械自检**：`scripts/copy_check.py`——接触阶段报价、占位符、自评、字数、版本号等红线

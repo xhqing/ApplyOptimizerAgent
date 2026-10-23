@@ -2,6 +2,13 @@
 
 本文件记录本项目（ApplyOptimizerAgent / Hopkins，原名 BidOptimizerAgent，2026-09-06 更名）每次文件增删改查的变更，写清「为什么改」和「改了什么」。版本号以项目根 `VERSION` 文件为唯一权威（当前 0.3.0）。
 
+## [Unreleased]
+
+### 变更（镜像仓库结构迁移跟进：CapabilityManagerAgent 镜像目录 `claude/` → `pi/agent/`）
+
+- **为什么改**：用户 2026-10-22 决定把 CapabilityManagerAgent 的开源镜像结构对齐 pi-harness——原 `claude/` 目录整体迁入 `pi/agent/`（与全局 `~/.pi/agent/` 路径一一对应），CC 遗留的 `hooks/` 不迁移、`claude/` 随后删除；全局 `capability-sync.md`、全局 CLAUDE.md 与注册表均已更新为新布局表述。本项目 `CLAUDE.md` 中「CapabilityManagerAgent 的 `claude/` 开源镜像」表述随之过时。
+- **改了什么**（2026-10-23）：`CLAUDE.md`「你的工具」节该处引用改为「CapabilityManagerAgent 的 `pi/agent/` 开源镜像」；本项目其余 CapabilityManagerAgent 提及（描述项目本身）不受影响。按 2026-10-13 fix/feat 发版门禁，本次为文档类改动，不 bump、不发版。
+
 ## [0.3.0] - 2026-10-22
 
 ### 变更（项目目标调整：三平台 + 全职远程 / 非全职简单优先 + 批量 JD 抓取与匹配管道）
