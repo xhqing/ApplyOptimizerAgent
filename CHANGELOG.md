@@ -1,8 +1,8 @@
 # CHANGELOG
 
-本文件记录本项目（ApplyOptimizerAgent / Hopkins，原名 BidOptimizerAgent，2026-09-06 更名）每次文件增删改查的变更，写清「为什么改」和「改了什么」。版本号以项目根 `VERSION` 文件为唯一权威（当前 0.3.0）。
+本文件记录本项目（ApplyOptimizerAgent / Hopkins，原名 BidOptimizerAgent，2026-09-06 更名）每次文件增删改查的变更，写清「为什么改」和「改了什么」。版本号以项目根 `VERSION` 文件为唯一权威（当前 0.4.0）。
 
-## [Unreleased]
+## [0.4.0] - 2026-10-23
 
 ### 新增（恢复 LinkedIn 渠道：主动线接回主管道）
 
