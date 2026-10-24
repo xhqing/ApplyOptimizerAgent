@@ -19,17 +19,24 @@
           列表页 location 是 LinkedIn 的招聘地点（不是公司总部），境外具体地点记地域受限。
 
 产出：
-  docs/jobs/jobs-<时间戳>.jsonl     全量标准化岗位（含 JD、评分、命中原因）
+  docs/jobs/jobs-<时间戳>.jsonl     全量标准化岗位（含 JD、评分、命中原因、信息充足度）
   docs/jobs/brief-<时间戳>.md       全职（全球 / 待确认 / 地域受限）与非全职推荐表
   docs/jobs/seen.json               已见岗位去重标记
+  docs/jobs/li-detail.json          LinkedIn 详情缓存（ID → JD / 雇佣类型，跨 run 复用）
+
+信息充足度（2026-10-23 立）：分数只能衡量「拿到的文本」里的匹配度——电鸭列表只有 200 字摘要、
+LinkedIn 卡片没有正文、Upwork 搜索块可能很短，这些岗拿不到 JD 全文就被系统性低估（实测：
+电鸭摘要级平均技能分 25.8 / 全文级 54.0，LinkedIn 卡片 32.4 / 全文 63.6）。所以按
+`detail` 与 JD 字数（JD_LOW_CHARS）分两池：拿到正文的（rich）进分数可比的推荐表，
+拿不到的写 `info_low=true` 在简报末尾单列「信息不足 · 待补全文」，不跟全文岗混排。
 
 调权重时不必重抓：`--from-jsonl docs/jobs/jobs-xxx.jsonl` 直接离线重算。
 
 用法：
   python3 scripts/job_fetch.py                       # 四平台默认查询
   python3 scripts/job_fetch.py --platforms wwr       # 只跑一个平台
-  python3 scripts/job_fetch.py --details 0           # 不抓电鸭详情（快）
-  python3 scripts/job_fetch.py --li-details 0        # 不抓 LinkedIn 详情（快）
+  python3 scripts/job_fetch.py --details 0           # 不抓电鸭详情（快；默认 15 条）
+  python3 scripts/job_fetch.py --li-details 0        # 不抓 LinkedIn 详情（快；默认 80 条）
   python3 scripts/job_fetch.py --queries "python automation,llm,quant"
 
 边界：
@@ -83,7 +90,7 @@ LI_QUERIES = [
 ]
 LI_LOCS = ("Remote", "China")  # 两个地点桶：全球远程 + 国内远程
 LI_STARTS = (0, 25)             # guest 每页约 10 条（登录版 25），翻两页
-LI_MAX_DETAIL = 40              # 详情上限：每岗一次请求，只拉角色命中的岗（有缓存，重跑不重拉）
+LI_MAX_DETAIL = 80              # 详情上限：每岗一次请求，只拉角色命中的岗（有缓存，重跑不重拉）
 
 DEFAULT_QUERIES = [
     # 全职远程方向（Upwork 上也会出现，但主要是非全职）
@@ -559,10 +566,18 @@ def li_priority(job: dict) -> tuple:
     return (geo, -strong)
 
 
-def li_get(url: str, timeout: int = 30) -> str:
-    """guest 接口免登录但按 IP 限流：每次请求前留 1 秒间隔（含详情页）。"""
-    time.sleep(1.0)
-    return http_get(url, timeout=timeout).decode("utf-8", "ignore")
+def li_get(url: str, timeout: int = 30, retries: int = 1) -> str:
+    """guest 接口免登录但按 IP 限流：请求间隔 1 秒，失败退避 4 秒重试一次。
+    重试后仍失败就抛出去，由调用方记 failures（列表页跳过、详情页由连续失败断路器提前收尾）。
+    """
+    last: Exception | None = None
+    for attempt in range(retries + 1):
+        time.sleep(1.0 if attempt == 0 else 4.0)
+        try:
+            return http_get(url, timeout=timeout).decode("utf-8", "ignore")
+        except Exception as exc:  # noqa: BLE001
+            last = exc
+    raise last  # type: ignore[misc]
 
 
 def li_clean(raw: str) -> str:
@@ -650,6 +665,7 @@ def linkedin_items(max_detail: int = LI_MAX_DETAIL,
 
     cache = load_li_cache()
     fetched = cached = 0
+    fail_streak = 0
     for job in kept:
         jid = job["id"]
         if jid in cache:
@@ -660,8 +676,16 @@ def linkedin_items(max_detail: int = LI_MAX_DETAIL,
             continue
         try:
             detail_html = li_get(LI_DETAIL.format(id=jid))
+            fail_streak = 0
         except Exception:  # noqa: BLE001
             failures.append(f"LinkedIn 详情 [{job['title'][:40]}]: 请求失败")
+            fail_streak += 1
+            # 连续失败断路器：限流后继续请求只会白白消耗时间，缓存已保留、下次续补。
+            if fail_streak >= 4:
+                failures.append(f"LinkedIn: 连续 {fail_streak} 次详情请求失败，疑似限流——本轮提前停止抓详情"
+                                "（已拉到的写进 li-detail.json，下次 run 续补）")
+                break
+            time.sleep(3)
             continue
         dm = re.search(r"show-more-less-html__markup[^>]*>(.*?)</div>", detail_html, re.S)
         criteria = {
@@ -936,6 +960,9 @@ def efficiency_score(job: dict) -> int:
     return 50
 
 
+JD_LOW_CHARS = 400  # JD 正文少于这个字数视为「信息不足」：拿不到正文就评不出匹配度
+
+
 def score_job(job: dict) -> dict:
     skill, strong, other = skill_score(job)
     simple, simple_hits, complex_hits = simplicity_score(job)
@@ -973,6 +1000,19 @@ def score_job(job: dict) -> dict:
         final = max(0, final - 15)
 
     reasons = []
+    # 信息充足度：分数只能衡量「拿到的文本」里的匹配度，拿不到正文的岗不能拿去和全文岗比。
+    # 电鸭列表只有 200 字摘要（detail=list）、LinkedIn 卡片没有正文（detail=card），
+    # Upwork 搜索页描述块也可能很短（< JD_LOW_CHARS）——这些都记 info_low，简报里单列。
+    jd_len = len((job.get("jd") or "").strip())
+    if job.get("detail") in ("list", "card"):
+        info_reason = "只有列表摘要 / 展示卡片，未拿到 JD 正文（可补）"
+    elif jd_len < JD_LOW_CHARS:
+        info_reason = f"JD 原文仅 {jd_len} 字（帖子本身就短，补不了）"
+    else:
+        info_reason = ""
+    info_low = bool(info_reason)
+    if info_low:
+        reasons.append(f"信息不足：{info_reason}")
     if level_risk and employment == "full-time":
         reasons.append("级别偏高（Principal / Staff / Architect），需评估是否够得着")
     if strong:
@@ -1001,6 +1041,9 @@ def score_job(job: dict) -> dict:
         "score": final,
         "reasons": reasons,
         "strong_hits": strong,
+        "jd_len": jd_len,
+        "info_low": info_low,
+        "info_reason": info_reason,
     }
 
 
@@ -1027,7 +1070,7 @@ def main(argv: list[str] | None = None) -> int:
                         help="逗号分隔：eleduck,linkedin,upwork,wwr")
     parser.add_argument("--queries", default="", help="Upwork 搜索词，逗号分隔（默认按画像内置）")
     parser.add_argument("--pages", type=int, default=1, help="Upwork 每个查询翻几页")
-    parser.add_argument("--details", type=int, default=6, help="电鸭最多抓几条详情（0=只用列表摘要）")
+    parser.add_argument("--details", type=int, default=15, help="电鸭最多抓几条详情（0=只用列表摘要）")
     parser.add_argument("--eleduck-pages", type=int, default=1, help="电鸭每个列表页翻几页（精选/简历匹配/社区招聘）")
     parser.add_argument("--eleduck-days", type=int, default=45, help="电鸭只看最近 N 天（精选职位保留更久）")
     parser.add_argument("--li-details", type=int, default=LI_MAX_DETAIL, help="LinkedIn 最多抓几条详情（0=只用列表卡片）")
@@ -1097,16 +1140,20 @@ def main(argv: list[str] | None = None) -> int:
         dedup[k] = score_job(job)
     scored = list(dedup.values())
 
-    fulltime = [j for j in scored if j["employment"] == "full-time"]
+    # 分两池：拿到 JD 正文的（分数可比）+ 只有摘要 / 卡片的（信息不足，单列，不进推荐表）
+    rich = [j for j in scored if not j["info_low"]]
+    low_info = sorted((j for j in scored if j["info_low"]), key=lambda x: -x["jd_len"])
+
+    fulltime = [j for j in rich if j["employment"] == "full-time"]
     nonremote = [j for j in fulltime if not j["remote"]]
     full = [j for j in fulltime if j["remote"] and j["eligible"] and j["region"] == "global"]
     full_restricted = [j for j in fulltime if j["remote"] and j["eligible"] and j["region"] == "restricted"]
     full_unknown = [j for j in fulltime if j["remote"] and j["eligible"] and j["region"] == "unknown"]
     full_other = [j for j in fulltime if j["remote"] and not j["eligible"]]
-    part_all = [j for j in scored if j["employment"] == "part-time"]
+    part_all = [j for j in rich if j["employment"] == "part-time"]
     part = [j for j in part_all if j["eligible"]]
     part_other = [j for j in part_all if not j["eligible"]]
-    unknown = [j for j in scored if j["employment"] not in ("full-time", "part-time")]
+    unknown = [j for j in rich if j["employment"] not in ("full-time", "part-time")]
     unknown.sort(key=lambda x: -x["score"])
     for bucket in (full, full_restricted, full_unknown, part):
         bucket.sort(key=lambda x: -x["score"])
@@ -1126,6 +1173,12 @@ def main(argv: list[str] | None = None) -> int:
         return (f"| {j['score']} | {flags}{j['platform']} | {j['role']} | {j['title'][:64]} | "
                 f"{j.get('company') or j.get('location') or ''}{budget} | {why} | {j['url']} |")
 
+    def low_row(j: dict) -> str:
+        flags = "🆕 " if j.get("is_new") else ""
+        return (f"| {j['jd_len']} 字 | {flags}{j['platform']} | {j['role']} | {j['title'][:56]} | "
+                f"{j.get('company') or j.get('location') or ''} | {j['employment']} | "
+                f"{j['info_reason']} | {j['url']} |")
+
     lines = [
         f"# 岗位匹配简报 {datetime.now().strftime('%Y-%m-%d %H:%M')}",
         "",
@@ -1134,7 +1187,7 @@ def main(argv: list[str] | None = None) -> int:
         f"LinkedIn {sum(1 for j in scored if j['platform']=='LinkedIn')} / "
         f"Upwork {sum(1 for j in scored if j['platform']=='Upwork')} / "
         f"WWR {sum(1 for j in scored if j['platform']=='WWR')}；"
-        f"失败 {len(failures)}。",
+        f"失败 {len(failures)}。其中拿到 JD 正文 {len(rich)} 条、信息不足 {len(low_info)} 条（单列在末尾）。",
         "",
         f"## 全职 · 远程（{len(full)} 条）",
         "",
@@ -1146,9 +1199,7 @@ def main(argv: list[str] | None = None) -> int:
               "| 分 | 平台 | 角色 | 岗位 | 地点 / 预算 | 命中 | 链接 |", "|---|---|---|---|---|---|---|"]
     lines += [row(j) for j in part[: args.top]] or ["| — | — | — | 本次无 | — | — | — |"]
     if unknown:
-        lines += ["", f"## 类型待确认（{len(unknown)} 条，需看 JD 判断）", "",
-                  "> 主要来自 LinkedIn 只拿到列表卡片、未拉详情的岗（雇佣类型在详情页，列表卡片没有）。"
-                  "调高 `--li-details` 可回填；其余渠道的待定项是标题没写清全职 / 兼职的岗。", ""]
+        lines += ["", f"## 类型待确认（{len(unknown)} 条，需看 JD 判断）", ""]
         lines += [row(j) for j in unknown[:8]]
     if full_unknown:
         lines += ["", f"## 全职 · 远程但工作许可待确认（{len(full_unknown)} 条）", ""]
@@ -1162,8 +1213,27 @@ def main(argv: list[str] | None = None) -> int:
     lines += ["", "## 已排除（角色 / 技能范围不匹配）", "",
               f"- 全职非目标角色：{len(full_other)} 条；非全职超范围：{len(part_other)} 条。"
               f"（完整清单见 JSONL 的 eligible=false）", ""]
+    if low_info:
+        lines += ["", f"## 信息不足 · 待补全文（{len(low_info)} 条，分数不可比、不入上面的推荐表）", "",
+                  f"> 只拿到列表摘要 / 展示卡片（JD 正文 < {JD_LOW_CHARS} 字），不是「不匹配」而是「没看到」。"
+                  "补全文：电鸭调高 `--details`（每条详情起一次 Chrome）、LinkedIn 调高 `--li-details`"
+                  "（详情有缓存，重跑不重拉）；Upwork 搜索页描述块本身就不保证是全文。", "",
+                  "| JD | 平台 | 角色 | 岗位 | 公司 / 地点 | 类型 | 情况 | 链接 |", "|---|---|---|---|---|---|---|---|"]
+        lines += [low_row(j) for j in low_info[:12]]
+        if len(low_info) > 12:
+            lines += ["", f"- 另有 {len(low_info) - 12} 条同类，完整清单见 JSONL 的 `info_low=true`。"]
     if failures:
-        lines += ["", "## 抓取失败 / 降级", ""] + [f"- {f}" for f in failures]
+        # 同类失败聚合成一行（40 行逐条列会把简报尾巴洗成噪声），再给几条样例。
+        groups: dict[str, list[str]] = {}
+        for f in failures:
+            groups.setdefault(f.split(" [")[0], []).append(f)
+        lines += ["", "## 抓取失败 / 降级", ""]
+        for head, items in sorted(groups.items(), key=lambda kv: -len(kv[1])):
+            lines.append(f"- {head}：{len(items)} 次")
+            if len(items) <= 2:
+                lines += [f"  - {x}" for x in items]
+            else:
+                lines += [f"  - 例：{items[0]}", f"  - 例：{items[-1]}"]
     lines += ["", "> Upwork 标题与描述来自公开搜索页；电鸭 detail=rss_only 表示只有 200 字摘要，"
                   "投递前需登录看详情。LinkedIn 走免登录 guest 端点：地点栏是它的招聘地点"
                   "（境外具体地点已归入「地域受限」，投前确认工作许可 / 时区）。", ""]
@@ -1175,7 +1245,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print("\n".join(lines))
     print(f"全职 {len(full)}（待确认 {len(full_unknown)}、受限 {len(full_restricted)}）/ 非全职 {len(part)} / 待定 {len(unknown)} / "
-          f"非远程全职 {len(nonremote)} / 角色排除 {len(full_other) + len(part_other)} / 失败 {len(failures)}")
+          f"信息不足 {len(low_info)} / 非远程全职 {len(nonremote)} / 角色排除 {len(full_other) + len(part_other)} / 失败 {len(failures)}")
     return 0
 
 

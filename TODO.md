@@ -22,9 +22,9 @@
   **背景**：新工具 `scripts/ledger.py open` 实测发现 12 条在途样本里有 8 条自最后活动起已超 30 天（DY-260905-01/02/03、GW-260913-01～05），按 SOP 通用关闭规则应转 lost；但它们可能只是「有后续但没记台账」（如 DY-260905-02 计划 09-10 有腾讯会议初面），不能机械批量关单——在途不计入分母，拖着会让转化率分母偏小、渠道判断失真。
   **要做什么**：① 逐条向用户确认是否还有推进；② 已死的用 `python3 scripts/ledger.py update --id <ID> --set outcome=lost --set close_date=today --set dead_layer=<层> --set lost_reason_layer=<归因>` 关单；③ 有进展的补记 `connected_at` / `engaged_at` / 新 `next_action`；④ 关单后重跑 `ledger.py stats` 记基线。
 
-- [ ] **T20** 三平台管道运维：Upwork 403 失败率、电鸭 profile 过期、每日定时跑（记录：2026-10-22 14:15）
+- [ ] **T20** 四平台管道运维：Upwork 403 失败率、电鸭 profile 过期、信息不足占比、每日定时跑（记录：2026-10-22 14:15；2026-10-23 23:1x 更新：渠道回四个、补信息不足池与详情预算）
   **背景**：`scripts/job_fetch.py` 首次打通三平台，但两处外部依赖会静默失效——① Upwork 走 Jina 公开搜索页，Cloudflare 偶发 403（重试后仍失败会记 failures）；② 电鸭详情依赖 `/tmp/elduck-profile` 登录态，profile 过期后详情抓不到、只剩 200 字摘要（`detail` 不是 `full`），匹配质量下降但不报错。
-  **要做什么**：① 每次跑完看 failures 与 `detail != full` 的条数，连续两次异常就排查；② 电鸭 profile 过期时用 Chrome 登录一次刷新（/tmp 会被系统清理，必要时固化到项目外私有目录）；③ 用 launchd / cron 每日早晚各跑一次（早 9:30、晚 21:30），产出 `docs/jobs/`；④ 跑满两周用台账回应率校准打分权重（对齐 T7 / T9）。
+  **要做什么**：① 每次跑完看 failures、`detail != full` 的条数、简报里「信息不足」区占比，连续两次异常就排查；② 电鸭 profile 过期时用 Chrome 登录一次刷新（/tmp 会被系统清理，必要时固化到项目外私有目录）；③ 用 launchd / cron 每日早晚各跑一次（早 9:30、晚 21:30），产出 `docs/jobs/`；④ 跑满两周用台账回应率校准打分权重（对齐 T7 / T9）；⑤ **详情预算随耗时调（2026-10-23 增）**：电鸭 `--details`（现 15）与 LinkedIn `--li-details`（现 80）取大后单轮耗时上浮，若超过 20 分钟就回到分次跑（早晚各拉一半详情），别让单轮时长挤掉用户看简报的时间窗。
 
 - [ ] **T21** Upwork 账号注册 + Profile 建档（三平台核心渠道，用户执行；记录：2026-10-22 14:15）
   **背景**：渠道收敛后 Upwork 是三平台中唯一需要账号与 profile 的渠道；没有它，非全职线少一条主渠道。材料包 `docs/upwork-profile.md` 已备（Title 三选一 / Overview / 履历 / 作品集五条 / 费率带）；注册涉身份验证与收款，AI 不代注册。
