@@ -41,7 +41,7 @@
 
 - [ ] **T12** LegalAgent（Justin）GitHub 仓库立项待建（记录：2026-09-08）
   **背景**：全局注册表 2026-09-08 口径更新——项目名已定 `LegalAgent`（原名 LegalCounselAgent）、职称「法务Agent」、纯法务直属用户（财务职能暂时空缺）；但 GitHub 上 `xhqing/LegalAgent` 仓库从未创建（`xhqing/LegalCounselAgent` 也不存在），xhqing README 与 CyberRipple org README 里的 Justin 链接目前均为死链（点开 404）。
-  **要做什么**：按「新建 Agent 项目脚手架与开源约定」完整立项——`gh repo create xhqing/LegalAgent --public` + 双语 README（含 logo 与三徽章 + Visitors）+ `CLAUDE.md`（角色：纯法务——合同起草审查、收款结构设计、尽调、证据链、纠纷应对、合规备忘；直属用户、跨组服务全部小组）+ 根目录 `AGENTS.md` 软链 + LICENSE + VERSION + CHANGELOG；建仓后各处链接自然生效，无需回改。
+  **要做什么**：按「新建 Agent 项目脚手架与开源约定」完整立项——`gh repo create xhqing/LegalAgent --public` + 双语 README（含 logo 与三徽章 + Visitors）+ `AGENTS.md`（角色：纯法务——合同起草审查、收款结构设计、尽调、证据链、纠纷应对、合规备忘；直属用户、跨组服务全部小组）+ 根目录 `AGENTS.md` 软链 + LICENSE + VERSION + CHANGELOG；建仓后各处链接自然生效，无需回改。
 
 - [ ] **T9** 跑满 10 个已判定样本后校准口径边界，SOP 升级 v0.3（记录：2026-09-03 20:08）
   **背景**：T6 的校准剩余部分。记录载体已建档启用（台账 `docs/ledger.csv`、日志 `docs/journal.md`），从下一条样本起按 SOP 全量记录。SOP 第 7 节列出四条待校准边界：①「pass / 观望不算动作」的边界是否符合体感；②订金全额退款出现频率；③30 天无推进统一转 lost 是否要按层分级；④`fit_score` 各分数段实际转化率分布。
