@@ -63,4 +63,4 @@
 
 ## 子项目清单
 
-暂无子项目；子项目归属规则见全局 `~/.pi/agent/docs/agents-registry.md`「智能体专属文件归属与子项目映射」节（2026-10-17 修订）：智能体专属文件的实体只在 Agent 项目，子项目根目录挂 `AGENTS.md` / `.pi` 两条指回负责 Agent 的软链接（随仓库提交），在子项目目录开会话即继承负责 Agent 的身份与规则；后台会话仍以本项目根为工作目录。
+暂无子项目；子项目归属与 Leader / Worker 分工见全局 `~/.pi/agent/AGENTS.md`「Leader / Worker 分工」与 `~/.pi/agent/docs/agents-registry.md` 第 4 条（2026-11-07 立）：Agent 项目根目录的会话是 Leader（local main 同步、建 worktree、派任务、收尾），子项目根 / worktree 的会话是 Worker（干具体活并汇报）；子项目须带 `AGENTS.md` 软链接 + 真实 `.pi/` 目录 + `.pi/APPEND_SYSTEM.md`。
