@@ -44,6 +44,6 @@ Hopkins 服务**工作接单**（直属用户的单人岗位），把守漏斗�
 
 ## 许可与署名
 
-版权所有 (c) 2026 All Contributors，基于 [MIT License](LICENSE.md) 授权。
+版权所有 (c) 2026 xhqing，基于 [MIT License](LICENSE.md) 授权。
 
 **署名要求**：如你基于本项目衍生或再分发，请保留版权声明与许可文件，并注明来源：[ApplyOptimizerAgent](https://github.com/xhqing/ApplyOptimizerAgent)。
