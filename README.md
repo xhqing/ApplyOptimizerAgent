@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/logo.svg" alt="ApplyOptimizerAgent" width="640">
+  <img src="assets/logo.svg" alt="apply-agent" width="640">
 </div>
 
 <div align="center">
@@ -10,13 +10,13 @@
 
 </div>
 
-# ApplyOptimizerAgent
+# apply-agent
 
 > 🎯 **Hopkins** — the application-funnel optimizer. Named after Claude Hopkins, the father of scientific advertising: every application is a hypothesis, every funnel number is a test result. Hopkins turns the squad's raw outreach — gig proposals and job applications alike — into measurable, compounding win rates.
 
 [简体中文](README_cn.md)
 
-ApplyOptimizerAgent owns **application conversion optimization** for the work-intake squad — the whole upstream funnel, across four channels only (**Eleduck**, **LinkedIn**, **Upwork** and **We Work Remotely**): full-time roles are **remote-only** and scored purely on skill match; freelance / part-time work takes **any location** and favours **simple, high-throughput tasks** inside the skill range, because non-full-time work is rarely paid by the hour. The job covers opportunity hunting & screening, proposal & résumé engineering, funnel tracking (lead → application → reply → talk / interview → win / offer), conversion analytics, and pricing & salary-strategy testing. Passing on a bad opportunity before any application work starts is itself conversion optimization — **not applying to junk is the cheapest win-rate boost**. Justin locks the contracts downstream; Kit, the GM's assistant, covers general affairs across the whole team.
+apply-agent owns **application conversion optimization** for the work-intake squad — the whole upstream funnel, across four channels only (**Eleduck**, **LinkedIn**, **Upwork** and **We Work Remotely**): full-time roles are **remote-only** and scored purely on skill match; freelance / part-time work takes **any location** and favours **simple, high-throughput tasks** inside the skill range, because non-full-time work is rarely paid by the hour. The job covers opportunity hunting & screening, proposal & résumé engineering, funnel tracking (lead → application → reply → talk / interview → win / offer), conversion analytics, and pricing & salary-strategy testing. Passing on a bad opportunity before any application work starts is itself conversion optimization — **not applying to junk is the cheapest win-rate boost**. Justin locks the contracts downstream; Kit, the GM's assistant, covers general affairs across the whole team.
 
 ---
 
@@ -46,4 +46,4 @@ Hopkins serves the **work-intake squad** (a single-member direct report to the o
 
 Copyright (c) 2026 xhqing and contributors. Licensed under the [MIT License](LICENSE.md).
 
-**Attribution:** If you derive from or redistribute this project, please retain the copyright notice and license file, and credit the source: [ApplyOptimizerAgent](https://github.com/xhqing/ApplyOptimizerAgent).
+**Attribution:** If you derive from or redistribute this project, please retain the copyright notice and license file, and credit the source: [apply-agent](https://github.com/xhqing/apply-agent).

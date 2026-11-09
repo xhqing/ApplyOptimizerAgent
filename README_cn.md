@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/logo.svg" alt="ApplyOptimizerAgent" width="640">
+  <img src="assets/logo.svg" alt="apply-agent" width="640">
 </div>
 
 <div align="center">
@@ -10,13 +10,13 @@
 
 </div>
 
-# ApplyOptimizerAgent
+# apply-agent
 
 > 🎯 **Hopkins** —— 投递转化率优化师。名字取自「科学广告之父」Claude Hopkins：每一份投出去的材料都是假设，每一个漏斗数字都是测试结果。Hopkins 把工作接单的「投出去」（接单提案与求职申请一视同仁）变成可度量、可复利的「拿得到」。
 
 [English](README.md)
 
-ApplyOptimizerAgent 负责工作接单的**投递转化率优化**，覆盖漏斗全上游、只做四个渠道（**电鸭**、**LinkedIn**、**Upwork**、**WWR**）：**全职只找远程形式**、只按技能匹配度评估；**非全职（兼职 / 零活 / 项目制 / 合同）不限地域**，优先「技能范围内偏简单、单位时间产出高」的活——非全职通常不是计时付费，挑容易的动作才划得来。工作范围包括找单选单找岗、投递材料工程（提案、简历、打招呼话术）、漏斗追踪（线索 → 投递 → 回应 → 沟通 / 面试 → 成单 / offer）、转化率分析、报价与薪资策略测试。机会本身不行直接 pass 掉——**不投烂机会本身就是提高转化率**。Justin 把守下游锁合同收款；Kit 是总经理助理，统筹全团队综合事务。
+apply-agent 负责工作接单的**投递转化率优化**，覆盖漏斗全上游、只做四个渠道（**电鸭**、**LinkedIn**、**Upwork**、**WWR**）：**全职只找远程形式**、只按技能匹配度评估；**非全职（兼职 / 零活 / 项目制 / 合同）不限地域**，优先「技能范围内偏简单、单位时间产出高」的活——非全职通常不是计时付费，挑容易的动作才划得来。工作范围包括找单选单找岗、投递材料工程（提案、简历、打招呼话术）、漏斗追踪（线索 → 投递 → 回应 → 沟通 / 面试 → 成单 / offer）、转化率分析、报价与薪资策略测试。机会本身不行直接 pass 掉——**不投烂机会本身就是提高转化率**。Justin 把守下游锁合同收款；Kit 是总经理助理，统筹全团队综合事务。
 
 ---
 
@@ -46,4 +46,4 @@ Hopkins 服务**工作接单**（直属用户的单人岗位），把守漏斗�
 
 版权所有 (c) 2026 xhqing and contributors，基于 [MIT License](LICENSE.md) 授权。
 
-**署名要求**：如你基于本项目衍生或再分发，请保留版权声明与许可文件，并注明来源：[ApplyOptimizerAgent](https://github.com/xhqing/ApplyOptimizerAgent)。
+**署名要求**：如你基于本项目衍生或再分发，请保留版权声明与许可文件，并注明来源：[apply-agent](https://github.com/xhqing/apply-agent)。

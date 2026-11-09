@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""每日岗位简报管道（Hopkins · ApplyOptimizerAgent）
+"""每日岗位简报管道（Hopkins · apply-agent）
 
 2026-10-22 起停用：项目目标收敛为三平台（电鸭 / Upwork / WWR），全职只找远程、非全职优先简单高产出；
 抓取与打分统一由 scripts/job_fetch.py 负责。本脚本保留作 11 通道与旧地域口径的历史参考，不再进入日常流程。
