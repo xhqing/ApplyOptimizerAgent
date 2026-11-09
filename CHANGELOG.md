@@ -1,5 +1,10 @@
 # CHANGELOG
 
+### 变更（修复 `.codebuddy/skills` 软链接指向，2026-11-09）
+
+- **为什么改**：项目 2026-11-09 由 `ApplyOptimizerAgent` 更名为 `apply-agent`，仓库里被跟踪的 `.codebuddy/skills` 软链接仍指向旧绝对路径 `/Users/xhq/Developer/ApplyOptimizerAgent/.pi/skills`，改名后成为断链（CodeBuddy 侧读不到技能）。
+- **改了什么**：软链接目标改为 `/Users/xhq/Developer/apply-agent/.pi/skills`。
+
 ### 变更（项目更名为 apply-agent，2026-11-09）
 
 - **为什么改**：用户 2026-11-09 正式规定 agent 项目命名统一为 `<职责>-agent`（全小写、连字符）。本项目（Hopkins）由 `ApplyOptimizerAgent` 更名为 `apply-agent`。
