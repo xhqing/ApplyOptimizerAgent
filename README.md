@@ -44,6 +44,6 @@ Hopkins serves the **work-intake squad** (a single-member direct report to the o
 
 ## License & Attribution
 
-Copyright (c) 2026 xhqing <https://github.com/xhqing>. Licensed under the [MIT License](LICENSE.md).
+Copyright (c) 2026 xhqing and contributors. Licensed under the [MIT License](LICENSE.md).
 
 **Attribution:** If you derive from or redistribute this project, please retain the copyright notice and license file, and credit the source: [ApplyOptimizerAgent](https://github.com/xhqing/ApplyOptimizerAgent).
