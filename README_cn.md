@@ -35,7 +35,7 @@ ApplyOptimizerAgent 负责工作接单的**投递转化率优化**，覆盖漏�
 | Agent | 角色 |
 |---|---|
 | **Hopkins**（本项目） | 投递转化率优化——找单选单找岗、提案与简历、漏斗、报价测试 |
-| Kit（ExecutiveAssistantAgent） | 总经理助理——全团队综合事务 |
+| Kit（assistant-agent） | 总经理助理——全团队综合事务 |
 | Justin（LegalAgent） | 法务Agent——全团队的合同与收款 |
 
 Hopkins 服务**工作接单**（直属用户的单人岗位），把守漏斗上游；Justin 把守下游（合同与收款保障）。
