@@ -1,5 +1,10 @@
 # CHANGELOG
 
+### 变更（项目更名为 apply-agent，2026-11-09）
+
+- **为什么改**：用户 2026-11-09 正式规定 agent 项目命名统一为 `<职责>-agent`（全小写、连字符）。本项目（Hopkins）由 `ApplyOptimizerAgent` 更名为 `apply-agent`。
+- **改了什么**：① 本地目录与 GitHub 仓库更名为 `apply-agent`（旧 URL 自动重定向）；② `README.md` / `README_cn.md`（标题、logo alt、正文自称、署名链接）、`AGENTS.md` 标题、`assets/logo.svg` 里的项目名、`scripts/job_brief.py` docstring、`apply-writing` skill 里的项目名同步改名；③ `.gitignore` 注释里的约定来源改名。
+
 ### 变更（Kit 项目更名为 assistant-agent，2026-11-09）
 
 - **为什么改**：Kit 的 Agent 项目 2026-11-09 由 `ExecutiveAssistantAgent` 更名为 `assistant-agent`——项目名只求「尽可能简单、能体现主要职责」，不再要求以 `Agent` 结尾；项目性质改由 `README.md` 的 `Type-AI Agent` 徽章判定，与名字无关。本仓库双语 README 与待办里都引用了该项目的名字 / 私有文档路径，不同步就会指错。
