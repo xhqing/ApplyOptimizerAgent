@@ -1,5 +1,10 @@
 # CHANGELOG
 
+### 变更（Kit 项目更名为 assistant-agent，2026-11-09）
+
+- **为什么改**：Kit 的 Agent 项目 2026-11-09 由 `ExecutiveAssistantAgent` 更名为 `assistant-agent`——项目名只求「尽可能简单、能体现主要职责」，不再要求以 `Agent` 结尾；项目性质改由 `README.md` 的 `Type-AI Agent` 徽章判定，与名字无关。本仓库双语 README 与待办里都引用了该项目的名字 / 私有文档路径，不同步就会指错。
+- **改了什么**：`README.md` / `README_cn.md` 协作关系表里 Kit 那一行的项目名改名；`TODO.md` 中指向 Kit 项目私有 `docs/` 的路径（`ExecutiveAssistantAgent/docs/task-pool-bidding-sop.md` → `assistant-agent/docs/task-pool-bidding-sop.md`）。`.pi/skills/apply-writing/references/proposals.md` 里的旧名属 2026-09-03 的历史迁入记录，不动。
+
 本文件记录本项目（ApplyOptimizerAgent / Hopkins，原名 BidOptimizerAgent，2026-09-06 更名）每次文件增删改查的变更，写清「为什么改」和「改了什么」。版本号以项目根 `VERSION` 文件为唯一权威（当前 0.5.0）。
 
 ### 新增（CI 门禁：validate 检查 + main 分支 strict 保护）
